@@ -1,0 +1,44 @@
+# Byte-compiled / optimized / DLL files
+*$py.class
+*.py[cod]
+__pycache__/
+
+# C extensions
+*.so
+
+# Distribution / packaging
+*.egg
+*.egg-info/
+.Python
+MANIFEST
+build/
+dist/
+
+# Unit test / coverage reports
+*.cover
+*.py,cover
+.cache
+.coverage
+.coverage.*
+.hypothesis/
+.nox/
+.pytest_cache/
+.tox/
+cover/
+coverage.xml
+htmlcov/
+nosetests.xml
+
+# mypy
+.dmypy.json
+.mypy_cache/
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/

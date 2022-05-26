@@ -18,7 +18,19 @@ def make_blueprint() -> Blueprint:
     return blueprint
 
 
-def test(http_server) -> None:
+def test_text(http_server) -> None:
+    http_server(blueprint=make_blueprint(), port=5000)
+
+    result = subprocess.run(
+        ["discolinks", "--url", "http://localhost:5000"],
+        capture_output=True,
+    )
+
+    assert result.returncode == 0
+    assert result.stdout.decode() == ""
+
+
+def test_json(http_server) -> None:
     http_server(blueprint=make_blueprint(), port=5000)
 
     result = subprocess.run(
@@ -28,6 +40,10 @@ def test(http_server) -> None:
 
     assert result.returncode == 0
     assert json.loads(result.stdout.decode()) == {
-        "http://localhost:5000/": True,
-        "http://localhost:5000/foo": True,
+        "http://localhost:5000/": {
+            "status_code": 200,
+        },
+        "http://localhost:5000/foo": {
+            "status_code": 200,
+        },
     }

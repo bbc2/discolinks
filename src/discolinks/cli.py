@@ -1,4 +1,3 @@
-import json
 import logging
 from typing import Optional
 from urllib.parse import urljoin, urlparse
@@ -8,14 +7,10 @@ import click
 import requests
 from requests_html import HTMLResponse, HTMLSession
 
+from . import export
+from .core import Link, LinkInfo
+
 logger = logging.getLogger(__name__)
-
-
-@attrs.frozen
-class Link:
-    url: str
-    scheme: str
-    netloc: str
 
 
 def parse_url_arg(url: str) -> Optional[Link]:
@@ -113,7 +108,7 @@ def main(verbose: bool, to_json: bool, url: str) -> None:
         logger.error("Bad response status code: %d", response.status_code)
         exit(1)
 
-    links: dict[Link, bool] = {}
+    links: dict[Link, LinkInfo] = {}
     to_visit = set(get_links(response=response, link=start_link))
 
     while to_visit:
@@ -122,14 +117,14 @@ def main(verbose: bool, to_json: bool, url: str) -> None:
         try:
             response = request(session=session, link=link)
         except RequestError:
-            links[link] = False
+            links[link] = LinkInfo(status_code=None)
             continue
 
         if not response.ok:
-            links[link] = False
+            links[link] = LinkInfo(status_code=response.status_code)
             continue
 
-        links[link] = True
+        links[link] = LinkInfo(status_code=response.status_code)
 
         if link.netloc != start_link.netloc:
             continue
@@ -137,14 +132,15 @@ def main(verbose: bool, to_json: bool, url: str) -> None:
         new_links = get_links(response=response, link=link)
         to_visit |= new_links - links.keys()
 
-    failures = [link for (link, success) in links.items() if not success]
+    failures = [(link, info) for (link, info) in links.items() if not info.ok()]
     exit_code = 1 if failures else 0
 
     if to_json:
-        print(json.dumps({link.url: success for (link, success) in links.items()}))
+        print(export.dump_json(links=links))
         exit(exit_code)
 
-    for failed in failures:
-        print(failed.url)
+    for (link, info) in failures:
+        print(link.url)
+        print(f"  status code: {info.status_code}")
 
     exit(exit_code)

@@ -18,19 +18,29 @@ class Link:
     netloc: str
 
 
-def parse_url(url: str, base_link: Link = None) -> Link:
+def parse_url_arg(url: str) -> Optional[Link]:
+    if not url.startswith("http://") and not url.startswith("https://"):
+        url = f"http://{url}"
+
+    parsed = urlparse(url)
+
+    if not parsed.netloc:
+        return None
+
+    return Link(url=url, scheme=parsed.scheme, netloc=parsed.netloc)
+
+
+def parse_html_url(url: str, base_link: Link) -> Link:
     parsed = urlparse(url)
 
     if parsed.scheme:
         scheme = parsed.scheme
     else:
-        assert base_link is not None
         scheme = base_link.scheme
 
     if parsed.netloc:
         netloc = parsed.netloc
     else:
-        assert base_link is not None
         netloc = base_link.netloc
         url = urljoin(base_link.url, url)
 
@@ -54,7 +64,7 @@ def request(session: HTMLSession, link: Link) -> Optional[HTMLResponse]:
 
 def get_links(response: HTMLResponse, link: Link) -> frozenset[Link]:
     return frozenset(
-        parse_url(url, base_link=link)
+        parse_html_url(url, base_link=link)
         for a in response.html.find("a")
         if (url := a.attrs.get("href")) is not None
     )
@@ -81,7 +91,11 @@ def main(verbose: bool, to_json: bool, url: str) -> None:
     logging.getLogger().setLevel(logging.WARNING)
 
     session = HTMLSession()
-    start_link = parse_url(url)
+    start_link = parse_url_arg(url)
+
+    if start_link is None:
+        logger.error("Invalid URL: %s", url)
+        exit(1)
 
     links: dict[Link, bool] = {}
     to_visit = {start_link}

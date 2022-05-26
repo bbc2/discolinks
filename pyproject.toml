@@ -17,12 +17,17 @@ black = "^22.3.0"
 flake8 = "^4.0.1"
 Flask = "^2.1.2"
 isort = "^5.10.1"
-mypy = "^0.950"
+mypy = "^0.960"
 pytest = "^7.1.2"
 types-requests = "^2.27.27"
 
 [tool.poetry.scripts]
 discolinks = 'discolinks.cli:main'
+
+[tool.mypy]
+check_untyped_defs = true
+no_implicit_reexport = true
+warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
 module = "requests_html.*"

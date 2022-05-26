@@ -28,7 +28,6 @@ def test(http_server) -> None:
 
     assert result.returncode == 0
     assert json.loads(result.stdout.decode()) == {
-        "http://localhost:5000": True,
         "http://localhost:5000/": True,
         "http://localhost:5000/foo": True,
     }

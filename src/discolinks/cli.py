@@ -47,17 +47,23 @@ def parse_html_url(url: str, base_link: Link) -> Link:
     return Link(url=url, scheme=scheme, netloc=netloc)
 
 
-def request(session: HTMLSession, link: Link) -> Optional[HTMLResponse]:
+@attrs.frozen
+class RequestError(Exception):
+    msg: str
+
+
+def request(session: HTMLSession, link: Link) -> HTMLResponse:
+    """
+    Fetch an HTML page from the given link.
+
+    Raises `RequestError` if any connection issue is encountered.
+    """
     logger.debug("Requesting %s", link.url)
 
     try:
         response = session.get(link.url)
     except requests.RequestException as error:
-        logger.error(f"Error for {error.request.url}: {error}")
-        return None
-
-    if not response.ok:
-        return None
+        raise RequestError(msg=str(error))
 
     return response
 
@@ -97,14 +103,29 @@ def main(verbose: bool, to_json: bool, url: str) -> None:
         logger.error("Invalid URL: %s", url)
         exit(1)
 
+    try:
+        response = request(session=session, link=start_link)
+    except RequestError as error:
+        logger.error("%s", error.msg)
+        exit(1)
+
+    if not response.ok:
+        logger.error("Bad response status code: %d", response.status_code)
+        exit(1)
+
     links: dict[Link, bool] = {}
-    to_visit = {start_link}
+    to_visit = set(get_links(response=response, link=start_link))
 
     while to_visit:
         link = to_visit.pop()
-        response = request(session=session, link=link)
 
-        if response is None:
+        try:
+            response = request(session=session, link=link)
+        except RequestError:
+            links[link] = False
+            continue
+
+        if not response.ok:
             links[link] = False
             continue
 

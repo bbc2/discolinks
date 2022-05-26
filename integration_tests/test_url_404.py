@@ -1,17 +1,10 @@
-import json
 import subprocess
 
 from flask import Blueprint
 
 
 def make_blueprint() -> Blueprint:
-    blueprint = Blueprint("main", __name__)
-
-    @blueprint.route("/")
-    def root():
-        return """<a href="/foo">\n"""
-
-    return blueprint
+    return Blueprint("main", __name__)
 
 
 def test(http_server) -> None:
@@ -23,7 +16,4 @@ def test(http_server) -> None:
     )
 
     assert result.returncode == 1
-    assert json.loads(result.stdout.decode()) == {
-        "http://localhost:5000": True,
-        "http://localhost:5000/foo": False,
-    }
+    assert result.stdout.decode() == ""

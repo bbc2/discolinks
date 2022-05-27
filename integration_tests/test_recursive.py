@@ -42,8 +42,24 @@ def test_json(http_server) -> None:
     assert json.loads(result.stdout.decode()) == {
         "http://localhost:5000/": {
             "status_code": 200,
+            "origins": [
+                {
+                    "href": "/",
+                    "page": "http://localhost:5000/foo",
+                },
+            ],
         },
         "http://localhost:5000/foo": {
             "status_code": 200,
+            "origins": [
+                {
+                    "page": "http://localhost:5000",
+                    "href": "/foo",
+                },
+                {
+                    "page": "http://localhost:5000/",
+                    "href": "/foo",
+                },
+            ],
         },
     }

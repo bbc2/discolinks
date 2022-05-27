@@ -11,8 +11,15 @@ class Link:
 
 
 @attrs.frozen
+class LinkOrigin:
+    page: Link
+    href: str
+
+
+@attrs.frozen
 class LinkInfo:
     status_code: Optional[int]
+    origins: frozenset[LinkOrigin]
 
     def ok(self):
         return self.status_code is not None and not (400 <= self.status_code < 600)

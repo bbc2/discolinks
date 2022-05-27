@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import Iterable, Optional, Sequence
 from urllib.parse import urljoin, urlparse
 
 import attrs
@@ -8,7 +8,7 @@ import requests
 from requests_html import HTMLResponse, HTMLSession
 
 from . import export
-from .core import Link, LinkInfo
+from .core import Link, LinkInfo, LinkOrigin
 
 logger = logging.getLogger(__name__)
 
@@ -63,12 +63,98 @@ def request(session: HTMLSession, link: Link) -> HTMLResponse:
     return response
 
 
-def get_links(response: HTMLResponse, link: Link) -> frozenset[Link]:
-    return frozenset(
-        parse_html_url(url, base_link=link)
+def get_links(response: HTMLResponse, link: Link) -> Sequence[tuple[Link, LinkOrigin]]:
+    return [
+        (parse_html_url(url, base_link=link), LinkOrigin(href=url, page=link))
         for a in response.html.find("a")
         if (url := a.attrs.get("href")) is not None
+    ]
+
+
+def update_link_origins(
+    links: dict[Link, set[LinkOrigin]],
+    new_links: Iterable[tuple[Link, LinkOrigin]],
+) -> None:
+    for (link, origin) in new_links:
+        existing_origins = links.get(link)
+        if existing_origins is None:
+            links[link] = set([origin])
+        else:
+            links[link].add(origin)
+
+
+@attrs.frozen
+class LinkResult:
+    status_code: Optional[int]
+
+    def ok(self):
+        return self.status_code is not None and not (400 <= self.status_code < 600)
+
+
+@attrs.frozen
+class LinkResponse:
+    result: LinkResult
+    response: Optional[HTMLResponse]
+
+
+def request_link(session: HTMLSession, link: Link) -> LinkResponse:
+    try:
+        response = request(session=session, link=link)
+    except RequestError:
+        return LinkResponse(
+            result=LinkResult(status_code=None),
+            response=None,
+        )
+
+    return LinkResponse(
+        result=LinkResult(status_code=response.status_code),
+        response=response,
     )
+
+
+def investigate_link(
+    session: HTMLSession,
+    link_results: dict[Link, LinkResult],
+    link_origins: dict[Link, set[LinkOrigin]],
+    to_visit: set[Link],
+    start_link: Link,
+    link: Link,
+):
+    link_response = request_link(session=session, link=link)
+    link_results[link] = link_response.result
+
+    if not link_response.result.ok:
+        return
+
+    if link.netloc != start_link.netloc:
+        return
+
+    page_links = get_links(response=link_response.response, link=link)
+    update_link_origins(link_origins, page_links)
+    to_visit |= set([link for (link, _) in page_links]) - link_results.keys()
+
+
+def find_links(
+    session: HTMLSession,
+    link_results: dict[Link, LinkResult],
+    link_origins: dict[Link, set[LinkOrigin]],
+    start_link: Link,
+    start_response: HTMLResponse,
+) -> None:
+    page_links = get_links(response=start_response, link=start_link)
+    update_link_origins(link_origins, page_links)
+    to_visit = set([link for (link, _) in page_links])
+
+    while to_visit:
+        link = to_visit.pop()
+        investigate_link(
+            session=session,
+            link_results=link_results,
+            link_origins=link_origins,
+            to_visit=to_visit,
+            start_link=start_link,
+            link=link,
+        )
 
 
 @click.command()
@@ -108,39 +194,37 @@ def main(verbose: bool, to_json: bool, url: str) -> None:
         logger.error("Bad response status code: %d", response.status_code)
         exit(1)
 
-    links: dict[Link, LinkInfo] = {}
-    to_visit = set(get_links(response=response, link=start_link))
+    link_results: dict[Link, LinkResult] = {}
+    link_origins: dict[Link, set[LinkOrigin]] = {}
 
-    while to_visit:
-        link = to_visit.pop()
+    find_links(
+        session=session,
+        link_results=link_results,
+        link_origins=link_origins,
+        start_link=start_link,
+        start_response=response,
+    )
 
-        try:
-            response = request(session=session, link=link)
-        except RequestError:
-            links[link] = LinkInfo(status_code=None)
-            continue
+    link_infos = {
+        link: LinkInfo(
+            status_code=result.status_code,
+            origins=frozenset(link_origins[link]),
+        )
+        for (link, result) in link_results.items()
+    }
 
-        if not response.ok:
-            links[link] = LinkInfo(status_code=response.status_code)
-            continue
-
-        links[link] = LinkInfo(status_code=response.status_code)
-
-        if link.netloc != start_link.netloc:
-            continue
-
-        new_links = get_links(response=response, link=link)
-        to_visit |= new_links - links.keys()
-
-    failures = [(link, info) for (link, info) in links.items() if not info.ok()]
+    failures = [(link, info) for (link, info) in link_infos.items() if not info.ok()]
     exit_code = 1 if failures else 0
 
     if to_json:
-        print(export.dump_json(links=links))
+        print(export.dump_json(links=link_infos))
         exit(exit_code)
 
     for (link, info) in failures:
         print(link.url)
         print(f"  status code: {info.status_code}")
+        print("  origins:")
+        for origin in info.origins:
+            print(f"    {origin.page.url}: {origin.href}")
 
     exit(exit_code)

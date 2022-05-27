@@ -4,32 +4,32 @@ import subprocess
 from flask import Blueprint
 
 
-def make_blueprint() -> Blueprint:
+def make_blueprint(link: str) -> Blueprint:
     blueprint = Blueprint("main", __name__)
 
     @blueprint.route("/")
     def root():
-        return """<a href="">\n"""
+        return f"""<a href="{link}">\n"""
 
     return blueprint
 
 
 def test_json(http_server) -> None:
-    http_server(blueprint=make_blueprint(), port=5000)
+    http_server(blueprint=make_blueprint(link="http://localhost:5001"), port=5000)
 
     result = subprocess.run(
-        ["discolinks", "--json", "--url", "localhost:5000"],
+        ["discolinks", "--json", "--url", "http://localhost:5000"],
         capture_output=True,
     )
 
-    assert result.returncode == 0
+    assert result.returncode == 1
     assert json.loads(result.stdout.decode()) == {
-        "http://localhost:5000": {
-            "status_code": 200,
+        "http://localhost:5001": {
+            "status_code": None,
             "origins": [
                 {
                     "page": "http://localhost:5000",
-                    "href": "",
+                    "href": "http://localhost:5001",
                 },
             ],
         },

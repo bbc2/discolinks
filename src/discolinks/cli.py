@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import Iterable, Optional, Sequence
 from urllib.parse import urljoin, urlparse
@@ -5,7 +6,7 @@ from urllib.parse import urljoin, urlparse
 import attrs
 import click
 import requests
-from requests_html import HTMLResponse, HTMLSession
+from requests_html import AsyncHTMLSession, HTMLResponse
 
 from . import export
 from .core import Link, LinkInfo, LinkOrigin
@@ -47,7 +48,7 @@ class RequestError(Exception):
     msg: str
 
 
-def request(session: HTMLSession, link: Link) -> HTMLResponse:
+async def request(session: AsyncHTMLSession, link: Link) -> HTMLResponse:
     """
     Fetch an HTML page from the given link.
 
@@ -56,7 +57,7 @@ def request(session: HTMLSession, link: Link) -> HTMLResponse:
     logger.debug("Requesting %s", link.url)
 
     try:
-        response = session.get(link.url)
+        response = await session.get(link.url)
     except requests.RequestException as error:
         raise RequestError(msg=str(error))
 
@@ -97,9 +98,9 @@ class LinkResponse:
     response: Optional[HTMLResponse]
 
 
-def request_link(session: HTMLSession, link: Link) -> LinkResponse:
+async def request_link(session: AsyncHTMLSession, link: Link) -> LinkResponse:
     try:
-        response = request(session=session, link=link)
+        response = await request(session=session, link=link)
     except RequestError:
         return LinkResponse(
             result=LinkResult(status_code=None),
@@ -112,30 +113,52 @@ def request_link(session: HTMLSession, link: Link) -> LinkResponse:
     )
 
 
-def investigate_link(
-    session: HTMLSession,
+async def investigate_link(
+    session: AsyncHTMLSession,
     link_results: dict[Link, LinkResult],
     link_origins: dict[Link, set[LinkOrigin]],
-    to_visit: set[Link],
     start_link: Link,
     link: Link,
-):
-    link_response = request_link(session=session, link=link)
+) -> frozenset[Link]:
+    link_response = await request_link(session=session, link=link)
     link_results[link] = link_response.result
 
     if not link_response.result.ok:
-        return
+        return frozenset()
 
     if link.netloc != start_link.netloc:
-        return
+        return frozenset()
 
     page_links = get_links(response=link_response.response, link=link)
     update_link_origins(link_origins, page_links)
-    to_visit |= set([link for (link, _) in page_links]) - link_results.keys()
+    return frozenset([link for (link, _) in page_links]) - link_results.keys()
 
 
-def find_links(
-    session: HTMLSession,
+async def work(
+    queue: asyncio.Queue[Link],
+    session: AsyncHTMLSession,
+    link_results: dict[Link, LinkResult],
+    link_origins: dict[Link, set[LinkOrigin]],
+    start_link: Link,
+):
+    while True:
+        link = await queue.get()
+        try:
+            new_links = await investigate_link(
+                session=session,
+                link_results=link_results,
+                link_origins=link_origins,
+                start_link=start_link,
+                link=link,
+            )
+            for link in new_links:
+                queue.put_nowait(link)
+        finally:
+            queue.task_done()
+
+
+async def find_links(
+    session: AsyncHTMLSession,
     link_results: dict[Link, LinkResult],
     link_origins: dict[Link, set[LinkOrigin]],
     start_link: Link,
@@ -143,18 +166,57 @@ def find_links(
 ) -> None:
     page_links = get_links(response=start_response, link=start_link)
     update_link_origins(link_origins, page_links)
-    to_visit = set([link for (link, _) in page_links])
+    queue: asyncio.Queue[Link] = asyncio.Queue()
 
-    while to_visit:
-        link = to_visit.pop()
-        investigate_link(
-            session=session,
-            link_results=link_results,
-            link_origins=link_origins,
-            to_visit=to_visit,
-            start_link=start_link,
-            link=link,
+    for (link, _) in page_links:
+        queue.put_nowait(link)
+
+    workers: list[asyncio.Task] = []
+
+    for _ in range(4):
+        worker = asyncio.create_task(
+            work(
+                queue=queue,
+                session=session,
+                link_results=link_results,
+                link_origins=link_origins,
+                start_link=start_link,
+            ),
         )
+        workers.append(worker)
+
+    await queue.join()
+
+    for worker in workers:
+        worker.cancel()
+
+    await asyncio.gather(*workers, return_exceptions=True)
+
+
+async def main_async(
+    link_results: dict[Link, LinkResult],
+    link_origins: dict[Link, set[LinkOrigin]],
+    start_link: Link,
+):
+    session = AsyncHTMLSession()
+
+    try:
+        response = await request(session=session, link=start_link)
+    except RequestError as error:
+        logger.error("%s", error.msg)
+        exit(1)
+
+    if not response.ok:
+        logger.error("Bad response status code: %d", response.status_code)
+        exit(1)
+
+    await find_links(
+        session=AsyncHTMLSession(),
+        link_results=link_results,
+        link_origins=link_origins,
+        start_link=start_link,
+        start_response=response,
+    )
 
 
 @click.command()
@@ -177,32 +239,21 @@ def main(verbose: bool, to_json: bool, url: str) -> None:
 
     logging.getLogger().setLevel(logging.WARNING)
 
-    session = HTMLSession()
     start_link = parse_url_arg(url)
 
     if start_link is None:
         logger.error("Invalid URL: %s", url)
         exit(1)
 
-    try:
-        response = request(session=session, link=start_link)
-    except RequestError as error:
-        logger.error("%s", error.msg)
-        exit(1)
-
-    if not response.ok:
-        logger.error("Bad response status code: %d", response.status_code)
-        exit(1)
-
     link_results: dict[Link, LinkResult] = {}
     link_origins: dict[Link, set[LinkOrigin]] = {}
 
-    find_links(
-        session=session,
-        link_results=link_results,
-        link_origins=link_origins,
-        start_link=start_link,
-        start_response=response,
+    asyncio.run(
+        main_async(
+            link_results=link_results,
+            link_origins=link_origins,
+            start_link=start_link,
+        )
     )
 
     link_infos = {

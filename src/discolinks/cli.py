@@ -103,6 +103,11 @@ async def investigate_link(
 
     if link.netloc != start_link.netloc:
         result = await request_link_head(requester=requester, link=link)
+
+        if result.status_code == 405:
+            response = await request_link_get(requester=requester, link=link)
+            result = response.result
+
         link_store.add_result(link=link, result=result)
         return frozenset()
 

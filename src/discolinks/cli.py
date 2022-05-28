@@ -5,12 +5,12 @@ from urllib.parse import urljoin, urlparse
 
 import attrs
 import click
-import requests
-from requests_html import AsyncHTMLSession, HTMLResponse
+from requests_html import HTMLResponse
 
 from . import export
 from .core import Link, LinkOrigin
 from .link_store import LinkResult, LinkStore
+from .requester import Requester, RequestError
 
 logger = logging.getLogger(__name__)
 
@@ -44,27 +44,6 @@ def parse_html_url(url: str, base_link: Link) -> Link:
     return Link(url=url, scheme=scheme, netloc=netloc)
 
 
-@attrs.frozen
-class RequestError(Exception):
-    msg: str
-
-
-async def request(session: AsyncHTMLSession, link: Link) -> HTMLResponse:
-    """
-    Fetch an HTML page from the given link.
-
-    Raises `RequestError` if any connection issue is encountered.
-    """
-    logger.debug("Requesting %s", link.url)
-
-    try:
-        response = await session.get(link.url)
-    except requests.RequestException as error:
-        raise RequestError(msg=str(error))
-
-    return response
-
-
 def get_links(response: HTMLResponse, link: Link) -> Sequence[tuple[Link, LinkOrigin]]:
     return [
         (parse_html_url(url, base_link=link), LinkOrigin(href=url, page=link))
@@ -79,9 +58,9 @@ class LinkResponse:
     response: Optional[HTMLResponse]
 
 
-async def request_link(session: AsyncHTMLSession, link: Link) -> LinkResponse:
+async def request_link(requester: Requester, link: Link) -> LinkResponse:
     try:
-        response = await request(session=session, link=link)
+        response = await requester.get(link)
     except RequestError:
         return LinkResponse(
             result=LinkResult(status_code=None),
@@ -95,12 +74,12 @@ async def request_link(session: AsyncHTMLSession, link: Link) -> LinkResponse:
 
 
 async def investigate_link(
-    session: AsyncHTMLSession,
+    requester: Requester,
     link_store: LinkStore,
     start_link: Link,
     link: Link,
 ) -> AbstractSet[Link]:
-    link_response = await request_link(session=session, link=link)
+    link_response = await request_link(requester=requester, link=link)
     link_store.add_result(link=link, result=link_response.result)
 
     if not link_response.result.ok:
@@ -117,7 +96,7 @@ async def investigate_link(
 
 async def work(
     queue: asyncio.Queue[Link],
-    session: AsyncHTMLSession,
+    requester: Requester,
     link_store: LinkStore,
     start_link: Link,
 ):
@@ -125,7 +104,7 @@ async def work(
         link = await queue.get()
         try:
             new_links = await investigate_link(
-                session=session,
+                requester=requester,
                 link_store=link_store,
                 start_link=start_link,
                 link=link,
@@ -138,7 +117,7 @@ async def work(
 
 async def find_links(
     max_parallel_requests: int,
-    session: AsyncHTMLSession,
+    requester: Requester,
     link_store: LinkStore,
     start_link: Link,
     start_response: HTMLResponse,
@@ -156,7 +135,7 @@ async def find_links(
         worker = asyncio.create_task(
             work(
                 queue=queue,
-                session=session,
+                requester=requester,
                 link_store=link_store,
                 start_link=start_link,
             ),
@@ -176,10 +155,10 @@ async def main_async(
     link_store: LinkStore,
     start_link: Link,
 ):
-    session = AsyncHTMLSession()
+    requester = Requester()
 
     try:
-        response = await request(session=session, link=start_link)
+        response = await requester.get(start_link)
     except RequestError as error:
         logger.error("%s", error.msg)
         exit(1)
@@ -190,7 +169,7 @@ async def main_async(
 
     await find_links(
         max_parallel_requests=max_parallel_requests,
-        session=AsyncHTMLSession(),
+        requester=requester,
         link_store=link_store,
         start_link=start_link,
         start_response=response,
@@ -219,7 +198,7 @@ async def main_async(
 def main(verbose: bool, max_parallel_requests: int, to_json: bool, url: str) -> None:
     if verbose:
         logging.basicConfig(level=logging.DEBUG)
-        logger.setLevel(logging.DEBUG)
+        logging.getLogger("discolinks").setLevel(logging.DEBUG)
 
     logging.getLogger().setLevel(logging.WARNING)
 

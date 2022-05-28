@@ -64,7 +64,16 @@ class LinkResponse:
     response: Optional[HTMLResponse]
 
 
-async def request_link(requester: Requester, link: Link) -> LinkResponse:
+async def request_link_head(requester: Requester, link: Link) -> LinkResult:
+    try:
+        response = await requester.head(link)
+    except RequestError:
+        return LinkResult(status_code=None)
+
+    return LinkResult(status_code=response.status_code)
+
+
+async def request_link_get(requester: Requester, link: Link) -> LinkResponse:
     try:
         response = await requester.get(link)
     except RequestError:
@@ -85,17 +94,25 @@ async def investigate_link(
     start_link: Link,
     link: Link,
 ) -> AbstractSet[Link]:
-    link_response = await request_link(requester=requester, link=link)
+    """
+    Follow HTTP link and return new links if any are found.
+
+    For external websites this only does a `HEAD` to know if the link is broken or not, so
+    no new links are returned.
+    """
+
+    if link.netloc != start_link.netloc:
+        result = await request_link_head(requester=requester, link=link)
+        link_store.add_result(link=link, result=result)
+        return frozenset()
+
+    link_response = await request_link_get(requester=requester, link=link)
     link_store.add_result(link=link, result=link_response.result)
 
     if not link_response.result.ok:
         return frozenset()
 
-    if link.netloc != start_link.netloc:
-        return frozenset()
-
     page_links = get_links(response=link_response.response, link=link)
-
     new_links = link_store.add_origins(page_links)
     return new_links
 

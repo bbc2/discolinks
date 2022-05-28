@@ -18,13 +18,28 @@ class RequestError(Exception):
 class Requester:
     session: AsyncHTMLSession = attrs.field(init=False, factory=AsyncHTMLSession)
 
+    async def head(self, link: Link) -> HTMLResponse:
+        """
+        Send a HEAD request to the given link.
+
+        Raises `RequestError` if any connection issue is encountered.
+        """
+        logger.debug("HEAD %s", link.url)
+
+        try:
+            response = await self.session.head(link.url)
+        except requests.RequestException as error:
+            raise RequestError(msg=str(error))
+
+        return response
+
     async def get(self, link: Link) -> HTMLResponse:
         """
         Fetch an HTML page from the given link.
 
         Raises `RequestError` if any connection issue is encountered.
         """
-        logger.debug("Requesting %s", link.url)
+        logger.debug("GET %s", link.url)
 
         try:
             response = await self.session.get(link.url)

@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Iterable, Optional, Sequence
+from typing import AbstractSet, Optional, Sequence
 from urllib.parse import urljoin, urlparse
 
 import attrs
@@ -9,7 +9,8 @@ import requests
 from requests_html import AsyncHTMLSession, HTMLResponse
 
 from . import export
-from .core import Link, LinkInfo, LinkOrigin
+from .core import Link, LinkOrigin
+from .link_store import LinkResult, LinkStore
 
 logger = logging.getLogger(__name__)
 
@@ -72,26 +73,6 @@ def get_links(response: HTMLResponse, link: Link) -> Sequence[tuple[Link, LinkOr
     ]
 
 
-def update_link_origins(
-    links: dict[Link, set[LinkOrigin]],
-    new_links: Iterable[tuple[Link, LinkOrigin]],
-) -> None:
-    for (link, origin) in new_links:
-        existing_origins = links.get(link)
-        if existing_origins is None:
-            links[link] = set([origin])
-        else:
-            links[link].add(origin)
-
-
-@attrs.frozen
-class LinkResult:
-    status_code: Optional[int]
-
-    def ok(self):
-        return self.status_code is not None and not (400 <= self.status_code < 600)
-
-
 @attrs.frozen
 class LinkResponse:
     result: LinkResult
@@ -115,13 +96,12 @@ async def request_link(session: AsyncHTMLSession, link: Link) -> LinkResponse:
 
 async def investigate_link(
     session: AsyncHTMLSession,
-    link_results: dict[Link, LinkResult],
-    link_origins: dict[Link, set[LinkOrigin]],
+    link_store: LinkStore,
     start_link: Link,
     link: Link,
-) -> frozenset[Link]:
+) -> AbstractSet[Link]:
     link_response = await request_link(session=session, link=link)
-    link_results[link] = link_response.result
+    link_store.add_result(link=link, result=link_response.result)
 
     if not link_response.result.ok:
         return frozenset()
@@ -130,15 +110,15 @@ async def investigate_link(
         return frozenset()
 
     page_links = get_links(response=link_response.response, link=link)
-    update_link_origins(link_origins, page_links)
-    return frozenset([link for (link, _) in page_links]) - link_results.keys()
+
+    new_links = link_store.add_origins(page_links)
+    return new_links
 
 
 async def work(
     queue: asyncio.Queue[Link],
     session: AsyncHTMLSession,
-    link_results: dict[Link, LinkResult],
-    link_origins: dict[Link, set[LinkOrigin]],
+    link_store: LinkStore,
     start_link: Link,
 ):
     while True:
@@ -146,8 +126,7 @@ async def work(
         try:
             new_links = await investigate_link(
                 session=session,
-                link_results=link_results,
-                link_origins=link_origins,
+                link_store=link_store,
                 start_link=start_link,
                 link=link,
             )
@@ -160,16 +139,15 @@ async def work(
 async def find_links(
     max_parallel_requests: int,
     session: AsyncHTMLSession,
-    link_results: dict[Link, LinkResult],
-    link_origins: dict[Link, set[LinkOrigin]],
+    link_store: LinkStore,
     start_link: Link,
     start_response: HTMLResponse,
 ) -> None:
-    page_links = get_links(response=start_response, link=start_link)
-    update_link_origins(link_origins, page_links)
     queue: asyncio.Queue[Link] = asyncio.Queue()
+    page_links = get_links(response=start_response, link=start_link)
+    new_links = link_store.add_origins(page_links)
 
-    for (link, _) in page_links:
+    for link in new_links:
         queue.put_nowait(link)
 
     workers: list[asyncio.Task] = []
@@ -179,8 +157,7 @@ async def find_links(
             work(
                 queue=queue,
                 session=session,
-                link_results=link_results,
-                link_origins=link_origins,
+                link_store=link_store,
                 start_link=start_link,
             ),
         )
@@ -196,8 +173,7 @@ async def find_links(
 
 async def main_async(
     max_parallel_requests: int,
-    link_results: dict[Link, LinkResult],
-    link_origins: dict[Link, set[LinkOrigin]],
+    link_store: LinkStore,
     start_link: Link,
 ):
     session = AsyncHTMLSession()
@@ -215,8 +191,7 @@ async def main_async(
     await find_links(
         max_parallel_requests=max_parallel_requests,
         session=AsyncHTMLSession(),
-        link_results=link_results,
-        link_origins=link_origins,
+        link_store=link_store,
         start_link=start_link,
         start_response=response,
     )
@@ -254,26 +229,17 @@ def main(verbose: bool, max_parallel_requests: int, to_json: bool, url: str) -> 
         logger.error("Invalid URL: %s", url)
         exit(1)
 
-    link_results: dict[Link, LinkResult] = {}
-    link_origins: dict[Link, set[LinkOrigin]] = {}
+    link_store = LinkStore()
 
     asyncio.run(
         main_async(
             max_parallel_requests=max_parallel_requests,
-            link_results=link_results,
-            link_origins=link_origins,
+            link_store=link_store,
             start_link=start_link,
         )
     )
 
-    link_infos = {
-        link: LinkInfo(
-            status_code=result.status_code,
-            origins=frozenset(link_origins[link]),
-        )
-        for (link, result) in link_results.items()
-    }
-
+    link_infos = link_store.get_link_infos()
     failures = [(link, info) for (link, info) in link_infos.items() if not info.ok()]
     exit_code = 1 if failures else 0
 

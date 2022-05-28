@@ -1,7 +1,10 @@
 import json
 import subprocess
 
+import pytest
 from flask import Blueprint
+
+from . import util
 
 
 def make_blueprint() -> Blueprint:
@@ -22,7 +25,7 @@ def test_text(http_server) -> None:
     http_server(blueprint=make_blueprint(), port=5000)
 
     result = subprocess.run(
-        ["discolinks", "--url", "http://localhost:5000"],
+        util.command(url="http://localhost:5000"),
         capture_output=True,
     )
 
@@ -30,11 +33,23 @@ def test_text(http_server) -> None:
     assert result.stdout.decode() == ""
 
 
-def test_json(http_server) -> None:
+@pytest.mark.parametrize(
+    "max_parallel_requests",
+    [
+        None,
+        1,
+        4,
+    ],
+)
+def test_json(max_parallel_requests: int, http_server) -> None:
     http_server(blueprint=make_blueprint(), port=5000)
 
     result = subprocess.run(
-        ["discolinks", "--json", "--url", "http://localhost:5000"],
+        util.command(
+            url="http://localhost:5000",
+            json=True,
+            max_parallel_requests=max_parallel_requests,
+        ),
         capture_output=True,
     )
 

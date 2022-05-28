@@ -158,6 +158,7 @@ async def work(
 
 
 async def find_links(
+    max_parallel_requests: int,
     session: AsyncHTMLSession,
     link_results: dict[Link, LinkResult],
     link_origins: dict[Link, set[LinkOrigin]],
@@ -173,7 +174,7 @@ async def find_links(
 
     workers: list[asyncio.Task] = []
 
-    for _ in range(4):
+    for _ in range(max_parallel_requests):
         worker = asyncio.create_task(
             work(
                 queue=queue,
@@ -194,6 +195,7 @@ async def find_links(
 
 
 async def main_async(
+    max_parallel_requests: int,
     link_results: dict[Link, LinkResult],
     link_origins: dict[Link, set[LinkOrigin]],
     start_link: Link,
@@ -211,6 +213,7 @@ async def main_async(
         exit(1)
 
     await find_links(
+        max_parallel_requests=max_parallel_requests,
         session=AsyncHTMLSession(),
         link_results=link_results,
         link_origins=link_origins,
@@ -226,13 +229,19 @@ async def main_async(
     help="Increase verbosity to show debug messages.",
 )
 @click.option(
+    "--max-parallel-requests",
+    default=4,
+    type=click.IntRange(min=1),
+    help="Maximum of requests which can be in-flight at any given time.",
+)
+@click.option(
     "--json",
     "to_json",
     is_flag=True,
     help="Export results as JSON to the standard output.",
 )
 @click.option("--url", required=True, help="URL where crawling will start.")
-def main(verbose: bool, to_json: bool, url: str) -> None:
+def main(verbose: bool, max_parallel_requests: int, to_json: bool, url: str) -> None:
     if verbose:
         logging.basicConfig(level=logging.DEBUG)
         logger.setLevel(logging.DEBUG)
@@ -250,6 +259,7 @@ def main(verbose: bool, to_json: bool, url: str) -> None:
 
     asyncio.run(
         main_async(
+            max_parallel_requests=max_parallel_requests,
             link_results=link_results,
             link_origins=link_origins,
             start_link=start_link,

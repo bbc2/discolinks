@@ -27,7 +27,13 @@ def parse_url_arg(url: str) -> Optional[Link]:
     return Link(url=url, scheme=parsed.scheme, netloc=parsed.netloc)
 
 
-def parse_html_url(url: str, base_link: Link) -> Link:
+def parse_href(url: str, base_link: Link) -> Link:
+    """
+    Parse the value of an `href` HTML attribute into a URL.
+
+    If the link is relative, we need the base URL to infer the absolute URL.
+    """
+
     parsed = urlparse(url)
 
     if parsed.scheme:
@@ -46,7 +52,7 @@ def parse_html_url(url: str, base_link: Link) -> Link:
 
 def get_links(response: HTMLResponse, link: Link) -> Sequence[tuple[Link, LinkOrigin]]:
     return [
-        (parse_html_url(url, base_link=link), LinkOrigin(href=url, page=link))
+        (parse_href(url, base_link=link), LinkOrigin(href=url, page=link))
         for a in response.html.find("a")
         if (url := a.attrs.get("href")) is not None
     ]

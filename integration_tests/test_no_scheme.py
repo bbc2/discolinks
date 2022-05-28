@@ -3,6 +3,8 @@ import subprocess
 
 from flask import Blueprint
 
+from . import util
+
 
 def make_blueprint() -> Blueprint:
     blueprint = Blueprint("main", __name__)
@@ -18,7 +20,7 @@ def test_json(http_server) -> None:
     http_server(blueprint=make_blueprint(), port=5000)
 
     result = subprocess.run(
-        ["discolinks", "--json", "--url", "localhost:5000"],
+        util.command(url="http://localhost:5000", json=True),
         capture_output=True,
     )
 

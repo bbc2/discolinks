@@ -1,9 +1,11 @@
 import subprocess
 
+from . import util
+
 
 def test_json() -> None:
     result = subprocess.run(
-        ["discolinks", "--json", "--url", "http://localhost:1"],
+        util.command(url="http://localhost:1", json=True),
         capture_output=True,
     )
 

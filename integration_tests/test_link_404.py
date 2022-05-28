@@ -20,7 +20,7 @@ def test_text(http_server) -> None:
     http_server(blueprint=make_blueprint(), port=5000)
 
     result = subprocess.run(
-        ["discolinks", "--url", "http://localhost:5000"],
+        util.command(url="http://localhost:5000"),
         capture_output=True,
     )
 
@@ -39,7 +39,7 @@ def test_json(http_server) -> None:
     http_server(blueprint=make_blueprint(), port=5000)
 
     result = subprocess.run(
-        ["discolinks", "--json", "--url", "http://localhost:5000"],
+        util.command(url="http://localhost:5000", json=True),
         capture_output=True,
     )
 

@@ -1,9 +1,15 @@
 [tool.poetry]
 name = "discolinks"
 version = "0-dev"
-description = ""
+description = "Command-line tool which checks a website for broken links."
 authors = ["Bertrand Bonnefoy-Claudet <bertrand@bertrandbc.com>"]
 license = "MIT"
+readme = "README.md"
+classifiers = [
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Typing :: Typed",
+]
+keywords = ["crawler", "http", "html", "link", "url", "web"]
 
 [tool.poetry.dependencies]
 attrs = "^21.4.0"

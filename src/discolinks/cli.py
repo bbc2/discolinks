@@ -175,7 +175,10 @@ async def find_links(
     for worker in workers:
         worker.cancel()
 
-    await asyncio.gather(*workers, return_exceptions=True)
+    try:
+        await asyncio.gather(*workers)
+    except asyncio.CancelledError:
+        pass
 
 
 async def main_async(

@@ -5,12 +5,12 @@ from urllib.parse import urljoin, urlparse
 
 import attrs
 import click
-from requests_html import HTMLResponse
+from requests_html import HTML
 
 from . import export
 from .core import Link, LinkOrigin
 from .link_store import LinkResult, LinkStore
-from .requester import Requester, RequestError
+from .requester import GetResponse, Requester, RequestError
 
 logger = logging.getLogger(__name__)
 
@@ -50,10 +50,12 @@ def parse_href(url: str, base_link: Link) -> Link:
     return Link(url=url, scheme=scheme, netloc=netloc)
 
 
-def get_links(response: HTMLResponse, link: Link) -> Sequence[tuple[Link, LinkOrigin]]:
+def get_links(response: GetResponse, link: Link) -> Sequence[tuple[Link, LinkOrigin]]:
+    html = HTML(html=response.body)
+
     return [
         (parse_href(url, base_link=link), LinkOrigin(href=url, page=link))
-        for a in response.html.find("a")
+        for a in html.find("a")
         if (url := a.attrs.get("href")) is not None
     ]
 
@@ -61,7 +63,7 @@ def get_links(response: HTMLResponse, link: Link) -> Sequence[tuple[Link, LinkOr
 @attrs.frozen
 class LinkResponse:
     result: LinkResult
-    response: Optional[HTMLResponse]
+    response: Optional[GetResponse]
 
 
 async def request_link_head(requester: Requester, link: Link) -> LinkResult:
@@ -117,6 +119,7 @@ async def investigate_link(
     if not link_response.result.ok():
         return frozenset()
 
+    assert link_response.response is not None
     page_links = get_links(response=link_response.response, link=link)
     new_links = link_store.add_origins(page_links)
     return new_links
@@ -148,7 +151,7 @@ async def find_links(
     requester: Requester,
     link_store: LinkStore,
     start_link: Link,
-    start_response: HTMLResponse,
+    start_response: GetResponse,
 ) -> None:
     queue: asyncio.Queue[Link] = asyncio.Queue()
     page_links = get_links(response=start_response, link=start_link)
@@ -194,7 +197,7 @@ async def main_async(
         logger.error("%s", error.msg)
         exit(1)
 
-    if not response.ok:
+    if not response.ok():
         logger.error("Bad response status code: %d", response.status_code)
         exit(1)
 

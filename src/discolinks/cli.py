@@ -114,7 +114,7 @@ async def investigate_link(
     link_response = await request_link_get(requester=requester, link=link)
     link_store.add_result(link=link, result=link_response.result)
 
-    if not link_response.result.ok:
+    if not link_response.result.ok():
         return frozenset()
 
     page_links = get_links(response=link_response.response, link=link)

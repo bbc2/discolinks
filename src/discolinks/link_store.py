@@ -55,9 +55,6 @@ class LinkStore:
 
         return new_links
 
-    def get_known_links(self) -> AbstractSet[Link]:
-        return self.results.keys()
-
     def get_link_infos(self) -> dict[Link, LinkInfo]:
         """
         Return link infos for accumulated link results and origins.

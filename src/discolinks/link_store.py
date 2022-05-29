@@ -13,10 +13,23 @@ class LinkResult:
         return self.status_code is not None and not (400 <= self.status_code < 600)
 
 
+@attrs.define
+class LinkState:
+    result: Optional[LinkResult]
+    origins: set[LinkOrigin] = attrs.field(factory=set)
+
+    def set_result(self, result: LinkResult) -> None:
+        assert self.result is None
+        self.result = result
+
+    def get_result(self) -> LinkResult:
+        assert self.result is not None
+        return self.result
+
+
 @attrs.frozen
 class LinkStore:
-    results: dict[Link, LinkResult] = attrs.field(init=False, default={})
-    origins: dict[Link, set[LinkOrigin]] = attrs.field(init=False, default={})
+    links: dict[Link, LinkState] = attrs.field(init=False, factory=dict)
 
     def add_result(self, link: Link, result: LinkResult) -> None:
         """
@@ -24,17 +37,19 @@ class LinkStore:
 
         Only new links can be added. Existing links cannot be updated.
         """
-        assert link not in self.results
-
-        self.results[link] = result
+        state = self.links.get(link)
+        if state is None:
+            self.links[link] = LinkState(result=result)
+        else:
+            state.set_result(result)
 
     def add_origin(self, link: Link, origin: LinkOrigin) -> bool:
-        existing_origins = self.origins.get(link)
-        if existing_origins is None:
-            self.origins[link] = set([origin])
+        state = self.links.get(link)
+        if state is None:
+            self.links[link] = LinkState(result=None, origins=set([origin]))
             return True
         else:
-            self.origins[link].add(origin)
+            state.origins.add(origin)
             return False
 
     def add_origins(
@@ -64,8 +79,8 @@ class LinkStore:
 
         return {
             link: LinkInfo(
-                status_code=result.status_code,
-                origins=frozenset(self.origins[link]),
+                status_code=state.get_result().status_code,
+                origins=frozenset(state.origins),
             )
-            for (link, result) in self.results.items()
+            for (link, state) in self.links.items()
         }

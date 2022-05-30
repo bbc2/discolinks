@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from typing import AbstractSet, Optional, Sequence
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urldefrag, urljoin, urlparse
 
 import attrs
 import click
@@ -24,6 +24,7 @@ def parse_url_arg(url: str) -> Optional[Link]:
     if not parsed.netloc:
         return None
 
+    (url, _) = urldefrag(url)
     return Link(url=url, scheme=parsed.scheme, netloc=parsed.netloc)
 
 
@@ -34,6 +35,7 @@ def parse_href(url: str, base_link: Link) -> Link:
     If the link is relative, we need the base URL to infer the absolute URL.
     """
 
+    (url, _) = urldefrag(url)
     parsed = urlparse(url)
 
     if parsed.scheme:

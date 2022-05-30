@@ -33,6 +33,26 @@ def test_get_hrefs(body: str, expected: list[tuple[Link, LinkOrigin]]):
             Link.from_url("http://example.net/foo"),
         ),
         (
+            "bar",
+            Link.from_url("http://example.net/foo"),
+            Link.from_url("http://example.net/bar"),
+        ),
+        (
+            "bar",
+            Link.from_url("http://example.net/foo/"),
+            Link.from_url("http://example.net/foo/bar"),
+        ),
+        (
+            "/bar",
+            Link.from_url("http://example.net/foo"),
+            Link.from_url("http://example.net/bar"),
+        ),
+        (
+            "/bar",
+            Link.from_url("http://example.net/foo/"),
+            Link.from_url("http://example.net/bar"),
+        ),
+        (
             "http://example.org",
             Link.from_url("http://example.net"),
             Link.from_url("http://example.org"),

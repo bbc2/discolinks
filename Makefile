@@ -16,7 +16,8 @@ check-format:  ## Check code quality.
 .PHONY: check-lint
 check-lint:  ## Check code quality.
 	flake8 ${python_src}
-	mypy ${python_src}
+	mypy --python-version 3.10 ${python_src}
+	mypy --python-version 3.9 ${python_src}
 
 .PHONY: check-test
 check-test:  ## Check tests.

@@ -1,4 +1,4 @@
-python_src := src integration_tests
+python_src := src tests integration_tests
 
 .PHONY: help
 help:

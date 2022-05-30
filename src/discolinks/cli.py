@@ -1,14 +1,13 @@
 import asyncio
 import logging
-from typing import AbstractSet, Optional, Sequence
-from urllib.parse import urldefrag, urljoin, urlparse
+from typing import AbstractSet, Optional
+from urllib.parse import urldefrag, urlparse
 
 import attrs
 import click
-from requests_html import HTML
 
-from . import export
-from .core import Link, LinkOrigin
+from . import export, html
+from .core import Link
 from .link_store import LinkResult, LinkStore
 from .requester import GetResponse, Requester, RequestError
 
@@ -26,40 +25,6 @@ def parse_url_arg(url: str) -> Optional[Link]:
 
     (url, _) = urldefrag(url)
     return Link(url=url, scheme=parsed.scheme, netloc=parsed.netloc)
-
-
-def parse_href(url: str, base_link: Link) -> Link:
-    """
-    Parse the value of an `href` HTML attribute into a URL.
-
-    If the link is relative, we need the base URL to infer the absolute URL.
-    """
-
-    (url, _) = urldefrag(url)
-    parsed = urlparse(url)
-
-    if parsed.scheme:
-        scheme = parsed.scheme
-    else:
-        scheme = base_link.scheme
-
-    if parsed.netloc:
-        netloc = parsed.netloc
-    else:
-        netloc = base_link.netloc
-        url = urljoin(base_link.url, url)
-
-    return Link(url=url, scheme=scheme, netloc=netloc)
-
-
-def get_links(response: GetResponse, link: Link) -> Sequence[tuple[Link, LinkOrigin]]:
-    html = HTML(html=response.body)
-
-    return [
-        (parse_href(url, base_link=link), LinkOrigin(href=url, page=link))
-        for a in html.find("a")
-        if (url := a.attrs.get("href")) is not None
-    ]
 
 
 @attrs.frozen
@@ -122,7 +87,7 @@ async def investigate_link(
         return frozenset()
 
     assert link_response.response is not None
-    page_links = get_links(response=link_response.response, link=link)
+    page_links = html.get_links(body=link_response.response.body, link=link)
     new_links = link_store.add_origins(page_links)
     return new_links
 
@@ -156,7 +121,7 @@ async def find_links(
     start_response: GetResponse,
 ) -> None:
     queue: asyncio.Queue[Link] = asyncio.Queue()
-    page_links = get_links(response=start_response, link=start_link)
+    page_links = html.get_links(body=start_response.body, link=start_link)
     new_links = link_store.add_origins(page_links)
 
     for link in new_links:

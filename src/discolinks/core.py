@@ -1,4 +1,5 @@
 from typing import Optional
+from urllib.parse import urldefrag, urlparse
 
 import attrs
 
@@ -8,6 +9,17 @@ class Link:
     url: str
     scheme: str
     netloc: str
+
+    @classmethod
+    def from_url(cls, url: str) -> "Link":
+        parsed = urlparse(url)
+        assert parsed.scheme
+        assert parsed.netloc
+        return cls(
+            url=urldefrag(url).url,
+            scheme=parsed.scheme,
+            netloc=parsed.netloc,
+        )
 
 
 @attrs.frozen

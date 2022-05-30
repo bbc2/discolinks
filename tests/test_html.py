@@ -10,6 +10,7 @@ from discolinks.html import get_hrefs, parse_href
         ("<body></body>", []),
         ("""<a href="foo">""", ["foo"]),
         ("""<a href="foo#bar">""", ["foo#bar"]),
+        ("""<a href="mailto:foo@example.net">""", []),
     ],
 )
 def test_get_hrefs(body: str, expected: list[tuple[Link, LinkOrigin]]):

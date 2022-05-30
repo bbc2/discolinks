@@ -9,7 +9,11 @@ from .core import Link, LinkOrigin
 def get_hrefs(body: str) -> Sequence[str]:
     html = HTML(html=body)
 
-    return [url for a in html.find("a") if (url := a.attrs.get("href")) is not None]
+    return [
+        url
+        for a in html.find("a")
+        if (url := a.attrs.get("href")) is not None and not url.startswith("mailto:")
+    ]
 
 
 def parse_href(href: str, base_link: Link) -> Link:

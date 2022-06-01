@@ -1,8 +1,7 @@
 import logging
 
 import attrs
-import requests
-from requests_html import AsyncHTMLSession
+import httpx
 
 from .core import Link
 
@@ -37,7 +36,7 @@ class GetResponse:
 
 @attrs.frozen
 class Requester:
-    session: AsyncHTMLSession = attrs.field(init=False, factory=AsyncHTMLSession)
+    client: httpx.AsyncClient = attrs.field(init=False, factory=httpx.AsyncClient)
 
     async def head(self, link: Link) -> HeadResponse:
         """
@@ -48,8 +47,8 @@ class Requester:
         logger.debug("HEAD %s", link.url)
 
         try:
-            response = await self.session.head(link.url)
-        except requests.RequestException as error:
+            response = await self.client.head(link.url, follow_redirects=True)
+        except httpx.HTTPError as error:
             raise RequestError(msg=str(error))
 
         return HeadResponse(
@@ -65,8 +64,8 @@ class Requester:
         logger.debug("GET %s", link.url)
 
         try:
-            response = await self.session.get(link.url)
-        except requests.RequestException as error:
+            response = await self.client.get(link.url, follow_redirects=True)
+        except httpx.HTTPError as error:
             raise RequestError(msg=str(error))
 
         return GetResponse(

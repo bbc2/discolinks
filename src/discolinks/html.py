@@ -1,17 +1,17 @@
 from typing import Sequence
 from urllib.parse import urldefrag, urljoin, urlparse
 
-from requests_html import HTML
+import bs4
 
 from .core import Link, LinkOrigin
 
 
 def get_hrefs(body: str) -> Sequence[str]:
-    html = HTML(html=body)
+    soup = bs4.BeautifulSoup(body, features="html.parser")
 
     return [
         url
-        for a in html.find("a")
+        for a in soup.find_all("a")
         if (url := a.attrs.get("href")) is not None and not url.startswith("mailto:")
     ]
 

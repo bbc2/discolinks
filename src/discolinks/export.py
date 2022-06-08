@@ -1,12 +1,12 @@
 import json
 from typing import Any, Mapping
 
-from .core import Link, LinkInfo, LinkOrigin
+from .core import LinkInfo, LinkOrigin, Url
 
 
 def origin_to_json(origin: LinkOrigin) -> Any:
     return {
-        "page": origin.page.url,
+        "page": origin.url.full,
         "href": origin.href,
     }
 
@@ -18,16 +18,16 @@ def info_to_json(info: LinkInfo) -> Any:
             origin_to_json(origin)
             for origin in sorted(
                 info.origins,
-                key=lambda origin: (origin.page.url, origin.href),
+                key=lambda origin: (origin.url.full, origin.href),
             )
         ],
     }
 
 
-def links_to_json(links: Mapping[Link, LinkInfo]) -> Any:
-    return {link.url: info_to_json(info) for (link, info) in links.items()}
+def links_to_json(links: Mapping[Url, LinkInfo]) -> Any:
+    return {url.full: info_to_json(info) for (url, info) in links.items()}
 
 
-def dump_json(links: Mapping[Link, LinkInfo]) -> str:
+def dump_json(links: Mapping[Url, LinkInfo]) -> str:
     obj = links_to_json(links=links)
     return json.dumps(obj)

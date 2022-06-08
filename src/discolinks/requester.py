@@ -3,7 +3,7 @@ import logging
 import attrs
 import httpx
 
-from .core import Link
+from .core import Url
 
 logger = logging.getLogger(__name__)
 
@@ -38,16 +38,16 @@ class GetResponse:
 class Requester:
     client: httpx.AsyncClient = attrs.field(init=False, factory=httpx.AsyncClient)
 
-    async def head(self, link: Link) -> HeadResponse:
+    async def head(self, link: Url) -> HeadResponse:
         """
         Send a HEAD request to the given link.
 
         Raises `RequestError` if any connection issue is encountered.
         """
-        logger.debug("HEAD %s", link.url)
+        logger.debug("HEAD %s", link)
 
         try:
-            response = await self.client.head(link.url, follow_redirects=True)
+            response = await self.client.head(link.full, follow_redirects=True)
         except httpx.HTTPError as error:
             raise RequestError(msg=str(error))
 
@@ -55,16 +55,16 @@ class Requester:
             status_code=response.status_code,
         )
 
-    async def get(self, link: Link) -> GetResponse:
+    async def get(self, link: Url) -> GetResponse:
         """
         Fetch an HTML page from the given link.
 
         Raises `RequestError` if any connection issue is encountered.
         """
-        logger.debug("GET %s", link.url)
+        logger.debug("GET %s", link)
 
         try:
-            response = await self.client.get(link.url, follow_redirects=True)
+            response = await self.client.get(link.full, follow_redirects=True)
         except httpx.HTTPError as error:
             raise RequestError(msg=str(error))
 

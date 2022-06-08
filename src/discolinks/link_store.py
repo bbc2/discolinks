@@ -1,86 +1,72 @@
-from typing import AbstractSet, Iterable, Optional
+from typing import Optional
 
 import attrs
 
-from .core import Link, LinkInfo, LinkOrigin
+from .core import LinkInfo, LinkOrigin, Url
 
 
 @attrs.frozen
-class LinkResult:
+class PageLink:
+    href: str
+    url: Url
+
+
+@attrs.frozen
+class UrlInfo:
     status_code: Optional[int]
+    links: Optional[frozenset[PageLink]]
 
-    def ok(self):
-        return self.status_code is not None and not (400 <= self.status_code < 600)
-
-
-@attrs.define
-class LinkState:
-    result: Optional[LinkResult]
-    origins: set[LinkOrigin] = attrs.field(factory=set)
-
-    def set_result(self, result: LinkResult) -> None:
-        assert self.result is None
-        self.result = result
-
-    def get_result(self) -> LinkResult:
-        assert self.result is not None
-        return self.result
+    def link_urls(self) -> frozenset[Url]:
+        if self.links is None:
+            return frozenset()
+        else:
+            return frozenset(link.url for link in self.links)
 
 
 @attrs.frozen
 class LinkStore:
-    links: dict[Link, LinkState] = attrs.field(init=False, factory=dict)
+    pages: dict[Url, UrlInfo] = attrs.field(init=False, factory=dict)
+    seen_urls: set[Url] = attrs.field(init=False, factory=set)
 
-    def add_result(self, link: Link, result: LinkResult) -> None:
+    def add_page(self, url: Url, info: UrlInfo) -> frozenset[Url]:
         """
-        Add request result for a given link.
+        Store page information for a given URL and return new URLs.
 
-        Only new links can be added. Existing links cannot be updated.
+        This can only be called once for each URL and each discovered URL is only returned
+        once.
         """
-        state = self.links.get(link)
-        if state is None:
-            self.links[link] = LinkState(result=result)
-        else:
-            state.set_result(result)
 
-    def add_origin(self, link: Link, origin: LinkOrigin) -> bool:
-        state = self.links.get(link)
-        if state is None:
-            self.links[link] = LinkState(result=None, origins=set([origin]))
-            return True
-        else:
-            state.origins.add(origin)
-            return False
+        assert url not in self.pages, f"URL already stored: {url}"
+        self.pages[url] = info
+        self.seen_urls.add(url)
+        new_urls = info.link_urls() - self.seen_urls
+        self.seen_urls.update(new_urls)
+        return new_urls
 
-    def add_origins(
-        self, links: Iterable[tuple[Link, LinkOrigin]]
-    ) -> AbstractSet[Link]:
+    def get_link_infos(self) -> dict[Url, LinkInfo]:
         """
-        Add HTTP/HTML origins to links fetched earlier and return new links.
-
-        Each new origin is added to the set of origins stored for each links. If a link is
-        new (no origin was known for that link), it will be part of the returned set of
-        links.
-        """
-        new_links = set()
-
-        for (link, origin) in links:
-            if self.add_origin(link=link, origin=origin):
-                new_links.add(link)
-
-        return new_links
-
-    def get_link_infos(self) -> dict[Link, LinkInfo]:
-        """
-        Return link infos for accumulated link results and origins.
+        Return link infos for accumulated URL results.
 
         This should be called only at the end of the crawling.
         """
 
-        return {
-            link: LinkInfo(
-                status_code=state.get_result().status_code,
-                origins=frozenset(state.origins),
-            )
-            for (link, state) in self.links.items()
-        }
+        infos: dict[Url, LinkInfo] = dict()
+
+        for (origin_url, url_info) in self.pages.items():
+            if url_info.links is None:
+                continue
+
+            for page_link in url_info.links:
+                url = page_link.url
+                link_info = infos.get(url)
+                origin = LinkOrigin(url=origin_url, href=page_link.href)
+                if link_info is None:
+                    status_code = self.pages[page_link.url].status_code
+                    infos[url] = LinkInfo(
+                        status_code=status_code,
+                        origins=frozenset([origin]),
+                    )
+                else:
+                    infos[url] = link_info.add_origin(origin)
+
+        return infos

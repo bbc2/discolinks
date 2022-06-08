@@ -3,7 +3,7 @@ from urllib.parse import urldefrag, urljoin, urlparse
 
 import bs4
 
-from .core import Link, LinkOrigin
+from .core import LinkOrigin, Url
 
 
 def get_hrefs(body: str) -> Sequence[str]:
@@ -16,7 +16,7 @@ def get_hrefs(body: str) -> Sequence[str]:
     ]
 
 
-def parse_href(href: str, base_link: Link) -> Link:
+def parse_href(href: str, base_url: Url) -> Url:
     """
     Parse the value of an `href` HTML attribute into a URL.
 
@@ -26,23 +26,16 @@ def parse_href(href: str, base_link: Link) -> Link:
     (href, _) = urldefrag(href)
     parsed = urlparse(href)
 
-    if parsed.scheme:
-        scheme = parsed.scheme
-    else:
-        scheme = base_link.scheme
-
     if parsed.netloc:
-        netloc = parsed.netloc
         url = href
     else:
-        netloc = base_link.netloc
-        url = urljoin(base_link.url, href)
+        url = urljoin(base_url.full, href)
 
-    return Link(url=url, scheme=scheme, netloc=netloc)
+    return Url.from_str(url)
 
 
-def get_links(body: str, link: Link) -> Sequence[tuple[Link, LinkOrigin]]:
+def get_links(body: str, url: Url) -> Sequence[tuple[Url, LinkOrigin]]:
     return [
-        (parse_href(href, base_link=link), LinkOrigin(href=href, page=link))
+        (parse_href(href, base_url=url), LinkOrigin(href=href, url=url))
         for href in get_hrefs(body)
     ]

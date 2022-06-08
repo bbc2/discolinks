@@ -5,26 +5,43 @@ import attrs
 
 
 @attrs.frozen
-class Link:
-    url: str
+class Url:
+    """
+    Wrapper around URL strings.
+
+    Use `Url.from_str` to build an instance and `url.full` to get the underlying string
+    (e.g. for communicating with HTTP libraries).
+    """
+
+    full: str
     scheme: str
     netloc: str
 
     @classmethod
-    def from_url(cls, url: str) -> "Link":
+    def from_str(cls, url: str) -> "Url":
         parsed = urlparse(url)
         assert parsed.scheme
         assert parsed.netloc
         return cls(
-            url=urldefrag(url).url,
+            full=urldefrag(url).url,
             scheme=parsed.scheme,
             netloc=parsed.netloc,
         )
 
+    def __str__(self) -> str:
+        return self.full
+
 
 @attrs.frozen
 class LinkOrigin:
-    page: Link
+    """
+    Information about the origin of a link.
+
+    - `link.url` is the address where the link was found.
+     -`link.href` is the HTML "href" attribute of the link.
+    """
+
+    url: Url
     href: str
 
 

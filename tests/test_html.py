@@ -1,6 +1,6 @@
 import pytest
 
-from discolinks.core import Link, LinkOrigin
+from discolinks.core import LinkOrigin, Url
 from discolinks.html import get_hrefs, parse_href
 
 
@@ -13,53 +13,53 @@ from discolinks.html import get_hrefs, parse_href
         ("""<a href="mailto:foo@example.net">""", []),
     ],
 )
-def test_get_hrefs(body: str, expected: list[tuple[Link, LinkOrigin]]):
+def test_get_hrefs(body: str, expected: list[tuple[Url, LinkOrigin]]):
     result = get_hrefs(body=body)
 
     assert list(result) == expected
 
 
 @pytest.mark.parametrize(
-    "href,base_link,expected",
+    "href,base_url,expected",
     [
         (
             "",
-            Link.from_url("http://example.net"),
-            Link.from_url("http://example.net"),
+            Url.from_str("http://example.net"),
+            Url.from_str("http://example.net"),
         ),
         (
             "foo",
-            Link.from_url("http://example.net"),
-            Link.from_url("http://example.net/foo"),
+            Url.from_str("http://example.net"),
+            Url.from_str("http://example.net/foo"),
         ),
         (
             "bar",
-            Link.from_url("http://example.net/foo"),
-            Link.from_url("http://example.net/bar"),
+            Url.from_str("http://example.net/foo"),
+            Url.from_str("http://example.net/bar"),
         ),
         (
             "bar",
-            Link.from_url("http://example.net/foo/"),
-            Link.from_url("http://example.net/foo/bar"),
+            Url.from_str("http://example.net/foo/"),
+            Url.from_str("http://example.net/foo/bar"),
         ),
         (
             "/bar",
-            Link.from_url("http://example.net/foo"),
-            Link.from_url("http://example.net/bar"),
+            Url.from_str("http://example.net/foo"),
+            Url.from_str("http://example.net/bar"),
         ),
         (
             "/bar",
-            Link.from_url("http://example.net/foo/"),
-            Link.from_url("http://example.net/bar"),
+            Url.from_str("http://example.net/foo/"),
+            Url.from_str("http://example.net/bar"),
         ),
         (
             "http://example.org",
-            Link.from_url("http://example.net"),
-            Link.from_url("http://example.org"),
+            Url.from_str("http://example.net"),
+            Url.from_str("http://example.org"),
         ),
     ],
 )
-def test_parse_href(href: str, base_link: Link, expected: Link):
-    result = parse_href(href=href, base_link=base_link)
+def test_parse_href(href: str, base_url: Url, expected: Url):
+    result = parse_href(href=href, base_url=base_url)
 
     assert result == expected

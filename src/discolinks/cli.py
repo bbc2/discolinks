@@ -7,14 +7,14 @@ import attrs
 import click
 
 from . import export, html
-from .core import Link
+from .core import Url
 from .link_store import LinkStore, PageLink, UrlInfo
 from .requester import GetResponse, Requester, RequestError
 
 logger = logging.getLogger(__name__)
 
 
-def parse_url_arg(url: str) -> Optional[Link]:
+def parse_url_arg(url: str) -> Optional[Url]:
     if not url.startswith("http://") and not url.startswith("https://"):
         url = f"http://{url}"
 
@@ -24,7 +24,7 @@ def parse_url_arg(url: str) -> Optional[Link]:
         return None
 
     (url, _) = urldefrag(url)
-    return Link(url=url, scheme=parsed.scheme, netloc=parsed.netloc)
+    return Url.from_str(url)
 
 
 @attrs.frozen
@@ -41,18 +41,18 @@ class LinkResponse:
     response: Optional[GetResponse]
 
 
-async def request_link_head(requester: Requester, link: Link) -> LinkResult:
+async def request_link_head(requester: Requester, url: Url) -> LinkResult:
     try:
-        response = await requester.head(link)
+        response = await requester.head(url)
     except RequestError:
         return LinkResult(status_code=None)
 
     return LinkResult(status_code=response.status_code)
 
 
-async def request_link_get(requester: Requester, link: Link) -> LinkResponse:
+async def request_link_get(requester: Requester, url: Url) -> LinkResponse:
     try:
-        response = await requester.get(link)
+        response = await requester.get(url)
     except RequestError:
         return LinkResponse(
             result=LinkResult(status_code=None),
@@ -65,12 +65,12 @@ async def request_link_get(requester: Requester, link: Link) -> LinkResponse:
     )
 
 
-async def investigate_link(
+async def investigate_url(
     requester: Requester,
     link_store: LinkStore,
-    start_link: Link,
-    link: Link,
-) -> AbstractSet[Link]:
+    start_url: Url,
+    url: Url,
+) -> AbstractSet[Url]:
     """
     Follow HTTP link and return new links if any are found.
 
@@ -78,31 +78,31 @@ async def investigate_link(
     no new links are returned.
     """
 
-    if link.netloc != start_link.netloc:
-        result = await request_link_head(requester=requester, link=link)
+    if url.netloc != start_url.netloc:
+        result = await request_link_head(requester=requester, url=url)
 
         if result.status_code == 405:
-            response = await request_link_get(requester=requester, link=link)
+            response = await request_link_get(requester=requester, url=url)
             result = response.result
 
         return link_store.add_page(
-            link=link,
+            url=url,
             info=UrlInfo(
                 status_code=result.status_code,
                 links=frozenset(),
             ),
         )
 
-    link_response = await request_link_get(requester=requester, link=link)
+    link_response = await request_link_get(requester=requester, url=url)
 
     if link_response.result.ok():
         assert link_response.response is not None
-        page_links = html.get_links(body=link_response.response.body, link=link)
+        page_links = html.get_links(body=link_response.response.body, url=url)
     else:
         page_links = []
 
     return link_store.add_page(
-        link=link,
+        url=url,
         info=UrlInfo(
             status_code=link_response.result.status_code,
             links=frozenset(
@@ -113,22 +113,22 @@ async def investigate_link(
 
 
 async def work(
-    queue: asyncio.Queue[Link],
+    queue: asyncio.Queue[Url],
     requester: Requester,
     link_store: LinkStore,
-    start_link: Link,
+    start_url: Url,
 ):
     while True:
-        link = await queue.get()
+        url = await queue.get()
         try:
-            new_links = await investigate_link(
+            new_urls = await investigate_url(
                 requester=requester,
                 link_store=link_store,
-                start_link=start_link,
-                link=link,
+                start_url=start_url,
+                url=url,
             )
-            for link in new_links:
-                queue.put_nowait(link)
+            for url in new_urls:
+                queue.put_nowait(url)
         finally:
             queue.task_done()
 
@@ -137,13 +137,13 @@ async def find_links(
     max_parallel_requests: int,
     requester: Requester,
     link_store: LinkStore,
-    start_link: Link,
-    first_links: frozenset[Link],
+    start_url: Url,
+    first_urls: frozenset[Url],
 ) -> None:
-    queue: asyncio.Queue[Link] = asyncio.Queue()
+    queue: asyncio.Queue[Url] = asyncio.Queue()
 
-    for link in first_links:
-        queue.put_nowait(link)
+    for url in first_urls:
+        queue.put_nowait(url)
 
     workers: list[asyncio.Task] = []
 
@@ -153,7 +153,7 @@ async def find_links(
                 queue=queue,
                 requester=requester,
                 link_store=link_store,
-                start_link=start_link,
+                start_url=start_url,
             ),
         )
         workers.append(worker)
@@ -172,12 +172,12 @@ async def find_links(
 async def main_async(
     max_parallel_requests: int,
     link_store: LinkStore,
-    start_link: Link,
+    start_url: Url,
 ):
     requester = Requester()
 
     try:
-        response = await requester.get(start_link)
+        response = await requester.get(start_url)
     except RequestError as error:
         logger.error("%s", error.msg)
         exit(1)
@@ -186,13 +186,13 @@ async def main_async(
         logger.error("Bad response status code: %d", response.status_code)
         exit(1)
 
-    links = html.get_links(body=response.body, link=start_link)
-    new_urls = link_store.add_page(
-        link=start_link,
+    links = html.get_links(body=response.body, url=start_url)
+    first_urls = link_store.add_page(
+        url=start_url,
         info=UrlInfo(
             status_code=response.status_code,
             links=frozenset(
-                PageLink(href=origin.href, url=link) for (link, origin) in links
+                PageLink(href=origin.href, url=url) for (url, origin) in links
             ),
         ),
     )
@@ -201,8 +201,8 @@ async def main_async(
         max_parallel_requests=max_parallel_requests,
         requester=requester,
         link_store=link_store,
-        start_link=start_link,
-        first_links=new_urls,
+        start_url=start_url,
+        first_urls=first_urls,
     )
 
 
@@ -232,9 +232,9 @@ def main(verbose: bool, max_parallel_requests: int, to_json: bool, url: str) -> 
 
     logging.getLogger().setLevel(logging.WARNING)
 
-    start_link = parse_url_arg(url)
+    start_url = parse_url_arg(url)
 
-    if start_link is None:
+    if start_url is None:
         logger.error("Invalid URL: %s", url)
         exit(1)
 
@@ -244,7 +244,7 @@ def main(verbose: bool, max_parallel_requests: int, to_json: bool, url: str) -> 
         main_async(
             max_parallel_requests=max_parallel_requests,
             link_store=link_store,
-            start_link=start_link,
+            start_url=start_url,
         )
     )
 
@@ -257,10 +257,10 @@ def main(verbose: bool, max_parallel_requests: int, to_json: bool, url: str) -> 
         exit(exit_code)
 
     for (link, info) in failures:
-        print(link.url)
+        print(link)
         print(f"  status code: {info.status_code}")
         print("  origins:")
         for origin in info.origins:
-            print(f"    {origin.page.url}: {origin.href}")
+            print(f"    {origin.url}: {origin.href}")
 
     exit(exit_code)

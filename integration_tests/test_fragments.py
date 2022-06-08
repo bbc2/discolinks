@@ -39,7 +39,7 @@ def test_json(http_server, url) -> None:
             url=url,
             json=True,
         ),
-        capture_output=True,
+        stdout=subprocess.PIPE,
     )
 
     assert result.returncode == 0

@@ -158,13 +158,18 @@ async def find_links(
         )
         workers.append(worker)
 
-    await queue.join()
+    # Wait for queue processing to finish, or for any worker to finish (which only happens
+    # if that worker raised an exception).
+    await asyncio.wait(
+        [queue.join(), *workers],
+        return_when=asyncio.FIRST_COMPLETED,
+    )
 
     for worker in workers:
         worker.cancel()
 
     try:
-        await asyncio.gather(*workers)
+        await asyncio.gather(*workers)  # ← worker exceptions raised here
     except asyncio.CancelledError:
         pass
 

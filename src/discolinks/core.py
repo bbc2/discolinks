@@ -35,3 +35,8 @@ class LinkInfo:
 
     def ok(self):
         return self.status_code is not None and not (400 <= self.status_code < 600)
+
+    def add_origin(self, origin: LinkOrigin) -> "LinkInfo":
+        return LinkInfo(
+            status_code=self.status_code, origins=self.origins | frozenset([origin])
+        )

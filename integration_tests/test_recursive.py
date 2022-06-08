@@ -26,7 +26,7 @@ def test_text(http_server) -> None:
 
     result = subprocess.run(
         util.command(url="http://localhost:5000"),
-        capture_output=True,
+        stdout=subprocess.PIPE,
     )
 
     assert result.returncode == 0
@@ -50,7 +50,7 @@ def test_json(max_parallel_requests: int, http_server) -> None:
             json=True,
             max_parallel_requests=max_parallel_requests,
         ),
-        capture_output=True,
+        stdout=subprocess.PIPE,
     )
 
     assert result.returncode == 0

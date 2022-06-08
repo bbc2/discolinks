@@ -28,7 +28,7 @@ def test_json(http_server) -> None:
             url="http://localhost:5000",
             json=True,
         ),
-        capture_output=True,
+        stdout=subprocess.PIPE,
     )
 
     assert result.returncode == 0

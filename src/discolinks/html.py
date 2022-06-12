@@ -3,7 +3,7 @@ from urllib.parse import urldefrag, urljoin, urlparse
 
 import bs4
 
-from .core import LinkOrigin, Url
+from .core import Link, Url
 
 
 def get_hrefs(body: str) -> Sequence[str]:
@@ -34,8 +34,7 @@ def parse_href(href: str, base_url: Url) -> Url:
     return Url.from_str(url)
 
 
-def get_links(body: str, url: Url) -> Sequence[tuple[Url, LinkOrigin]]:
+def get_links(body: str, url: Url) -> Sequence[Link]:
     return [
-        (parse_href(href, base_url=url), LinkOrigin(href=href, url=url))
-        for href in get_hrefs(body)
+        Link(href=href, url=parse_href(href, base_url=url)) for href in get_hrefs(body)
     ]

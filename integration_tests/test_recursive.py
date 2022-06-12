@@ -55,25 +55,36 @@ def test_json(max_parallel_requests: int, http_server) -> None:
 
     assert result.returncode == 0
     assert json.loads(result.stdout.decode()) == {
-        "http://localhost:5000/": {
-            "status_code": 200,
-            "origins": [
+        "http://localhost:5000": {
+            "links": [
                 {
-                    "href": "/",
-                    "page": "http://localhost:5000/foo",
+                    "href": "/foo",
+                    "destination": {
+                        "url": "http://localhost:5000/foo",
+                        "status_code": 200,
+                    },
+                },
+            ],
+        },
+        "http://localhost:5000/": {
+            "links": [
+                {
+                    "href": "/foo",
+                    "destination": {
+                        "url": "http://localhost:5000/foo",
+                        "status_code": 200,
+                    },
                 },
             ],
         },
         "http://localhost:5000/foo": {
-            "status_code": 200,
-            "origins": [
+            "links": [
                 {
-                    "page": "http://localhost:5000",
-                    "href": "/foo",
-                },
-                {
-                    "page": "http://localhost:5000/",
-                    "href": "/foo",
+                    "href": "/",
+                    "destination": {
+                        "url": "http://localhost:5000/",
+                        "status_code": 200,
+                    },
                 },
             ],
         },

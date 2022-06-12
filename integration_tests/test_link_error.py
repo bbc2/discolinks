@@ -26,12 +26,14 @@ def test_json(http_server) -> None:
 
     assert result.returncode == 1
     assert json.loads(result.stdout.decode()) == {
-        "http://localhost:5001": {
-            "status_code": None,
-            "origins": [
+        "http://localhost:5000": {
+            "links": [
                 {
-                    "page": "http://localhost:5000",
                     "href": "http://localhost:5001",
+                    "destination": {
+                        "url": "http://localhost:5001",
+                        "status_code": None,
+                    },
                 },
             ],
         },

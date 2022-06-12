@@ -1,4 +1,3 @@
-from typing import Optional
 from urllib.parse import urldefrag, urlparse
 
 import attrs
@@ -33,27 +32,6 @@ class Url:
 
 
 @attrs.frozen
-class LinkOrigin:
-    """
-    Information about the origin of a link.
-
-    - `link.url` is the address where the link was found.
-     -`link.href` is the HTML "href" attribute of the link.
-    """
-
-    url: Url
+class Link:
     href: str
-
-
-@attrs.frozen
-class LinkInfo:
-    status_code: Optional[int]
-    origins: frozenset[LinkOrigin]
-
-    def ok(self):
-        return self.status_code is not None and not (400 <= self.status_code < 600)
-
-    def add_origin(self, origin: LinkOrigin) -> "LinkInfo":
-        return LinkInfo(
-            status_code=self.status_code, origins=self.origins | frozenset([origin])
-        )
+    url: Url

@@ -27,10 +27,8 @@ def test_text(http_server) -> None:
     assert result.returncode == 1
     assert result.stdout.decode() == util.output_str(
         """
-        http://localhost:5000/foo
-          status code: 404
-          origins:
-            http://localhost:5000: /foo
+        http://localhost:5000
+          - /foo: 404
         """
     )
 
@@ -45,12 +43,14 @@ def test_json(http_server) -> None:
 
     assert result.returncode == 1
     assert json.loads(result.stdout.decode()) == {
-        "http://localhost:5000/foo": {
-            "status_code": 404,
-            "origins": [
+        "http://localhost:5000": {
+            "links": [
                 {
-                    "page": "http://localhost:5000",
                     "href": "/foo",
+                    "destination": {
+                        "url": "http://localhost:5000/foo",
+                        "status_code": 404,
+                    },
                 },
             ],
         },

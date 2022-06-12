@@ -1,6 +1,8 @@
+from typing import Sequence
+
 import pytest
 
-from discolinks.core import LinkOrigin, Url
+from discolinks.core import Url
 from discolinks.html import get_hrefs, parse_href
 
 
@@ -13,7 +15,7 @@ from discolinks.html import get_hrefs, parse_href
         ("""<a href="mailto:foo@example.net">""", []),
     ],
 )
-def test_get_hrefs(body: str, expected: list[tuple[Url, LinkOrigin]]):
+def test_get_hrefs(body: str, expected: Sequence[str]):
     result = get_hrefs(body=body)
 
     assert list(result) == expected

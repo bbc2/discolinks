@@ -44,17 +44,25 @@ def test_json(http_server, url) -> None:
 
     assert result.returncode == 0
     assert json.loads(result.stdout.decode()) == {
-        "http://localhost:5000/foo": {
-            "status_code": 200,
-            "origins": [
+        "http://localhost:5000": {
+            "links": [
                 {
-                    "page": "http://localhost:5000",
                     "href": "/foo#bar",
+                    "destination": {
+                        "url": "http://localhost:5000/foo",
+                        "status_code": 200,
+                    },
                 },
                 {
-                    "page": "http://localhost:5000",
                     "href": "/foo#baz",
+                    "destination": {
+                        "url": "http://localhost:5000/foo",
+                        "status_code": 200,
+                    },
                 },
             ],
+        },
+        "http://localhost:5000/foo": {
+            "links": [],
         },
     }

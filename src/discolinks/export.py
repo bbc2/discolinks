@@ -1,33 +1,34 @@
 import json
 from typing import Any, Mapping
 
-from .core import LinkInfo, LinkOrigin, Url
+from .analyzer import Destination, LinkResult, Page
+from .core import Url
 
 
-def origin_to_json(origin: LinkOrigin) -> Any:
+def destination_to_json(destination: Destination) -> Any:
     return {
-        "page": origin.url.full,
-        "href": origin.href,
+        "url": destination.url.full,
+        "status_code": destination.status_code,
     }
 
 
-def info_to_json(info: LinkInfo) -> Any:
+def link_to_json(link: LinkResult) -> Any:
     return {
-        "status_code": info.status_code,
-        "origins": [
-            origin_to_json(origin)
-            for origin in sorted(
-                info.origins,
-                key=lambda origin: (origin.url.full, origin.href),
-            )
-        ],
+        "href": link.href,
+        "destination": destination_to_json(link.destination),
     }
 
 
-def links_to_json(links: Mapping[Url, LinkInfo]) -> Any:
-    return {url.full: info_to_json(info) for (url, info) in links.items()}
+def page_to_json(page: Page) -> Any:
+    return {
+        "links": [link_to_json(link) for link in page.links],
+    }
 
 
-def dump_json(links: Mapping[Url, LinkInfo]) -> str:
-    obj = links_to_json(links=links)
+def pages_to_json(pages: Mapping[Url, Page]) -> Any:
+    return {url.full: page_to_json(page) for (url, page) in pages.items()}
+
+
+def dump_json(pages: Mapping[Url, Page]) -> str:
+    obj = pages_to_json(pages=pages)
     return json.dumps(obj)

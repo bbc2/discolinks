@@ -1,14 +1,14 @@
 import asyncio
 import logging
-from typing import AbstractSet, Optional
+from typing import AbstractSet, Mapping, Optional
 from urllib.parse import urldefrag, urlparse
 
 import attrs
 import click
 
-from . import export, html
+from . import analyzer, export, html
 from .core import Url
-from .link_store import LinkStore, PageLink, UrlInfo
+from .link_store import LinkStore, UrlInfo
 from .requester import GetResponse, Requester, RequestError
 
 logger = logging.getLogger(__name__)
@@ -89,7 +89,7 @@ async def investigate_url(
             url=url,
             info=UrlInfo(
                 status_code=result.status_code,
-                links=frozenset(),
+                links=None,
             ),
         )
 
@@ -99,15 +99,13 @@ async def investigate_url(
         assert link_response.response is not None
         page_links = html.get_links(body=link_response.response.body, url=url)
     else:
-        page_links = []
+        page_links = None
 
     return link_store.add_page(
         url=url,
         info=UrlInfo(
             status_code=link_response.result.status_code,
-            links=frozenset(
-                PageLink(href=origin.href, url=link) for (link, origin) in page_links
-            ),
+            links=page_links,
         ),
     )
 
@@ -196,9 +194,7 @@ async def main_async(
         url=start_url,
         info=UrlInfo(
             status_code=response.status_code,
-            links=frozenset(
-                PageLink(href=origin.href, url=url) for (url, origin) in links
-            ),
+            links=links,
         ),
     )
 
@@ -209,6 +205,24 @@ async def main_async(
         start_url=start_url,
         first_urls=first_urls,
     )
+
+
+def print_txt_results(pages: Mapping[Url, analyzer.Page]) -> int:
+    ok = True
+
+    for (url, info) in pages.items():
+        bad_links = [link for link in info.links if not link.ok()]
+
+        if not bad_links:
+            continue
+
+        ok = False
+        print(f"{url}")
+
+        for link in bad_links:
+            print(f"  - {link.href}: {link.destination.status_code}")
+
+    return 0 if ok else 1
 
 
 @click.command()
@@ -253,19 +267,12 @@ def main(verbose: bool, max_parallel_requests: int, to_json: bool, url: str) -> 
         )
     )
 
-    link_infos = link_store.get_link_infos()
-    failures = [(link, info) for (link, info) in link_infos.items() if not info.ok()]
-    exit_code = 1 if failures else 0
+    url_infos = link_store.get_url_infos()
+    pages = analyzer.analyze(url_infos)
 
     if to_json:
-        print(export.dump_json(links=link_infos))
-        exit(exit_code)
+        print(export.dump_json(pages=pages))
+        ok = all(link.ok() for (_, page) in pages.items() for link in page.links)
+        exit(0 if ok else 1)
 
-    for (link, info) in failures:
-        print(link)
-        print(f"  status code: {info.status_code}")
-        print("  origins:")
-        for origin in info.origins:
-            print(f"    {origin.url}: {origin.href}")
-
-    exit(exit_code)
+    exit(print_txt_results(pages=pages))

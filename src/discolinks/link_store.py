@@ -1,20 +1,14 @@
-from typing import Optional
+from typing import Mapping, Optional, Sequence
 
 import attrs
 
-from .core import LinkInfo, LinkOrigin, Url
-
-
-@attrs.frozen
-class PageLink:
-    href: str
-    url: Url
+from .core import Link, Url
 
 
 @attrs.frozen
 class UrlInfo:
     status_code: Optional[int]
-    links: Optional[frozenset[PageLink]]
+    links: Optional[Sequence[Link]]
 
     def link_urls(self) -> frozenset[Url]:
         if self.links is None:
@@ -43,30 +37,5 @@ class LinkStore:
         self.seen_urls.update(new_urls)
         return new_urls
 
-    def get_link_infos(self) -> dict[Url, LinkInfo]:
-        """
-        Return link infos for accumulated URL results.
-
-        This should be called only at the end of the crawling.
-        """
-
-        infos: dict[Url, LinkInfo] = dict()
-
-        for (origin_url, url_info) in self.pages.items():
-            if url_info.links is None:
-                continue
-
-            for page_link in url_info.links:
-                url = page_link.url
-                link_info = infos.get(url)
-                origin = LinkOrigin(url=origin_url, href=page_link.href)
-                if link_info is None:
-                    status_code = self.pages[page_link.url].status_code
-                    infos[url] = LinkInfo(
-                        status_code=status_code,
-                        origins=frozenset([origin]),
-                    )
-                else:
-                    infos[url] = link_info.add_origin(origin)
-
-        return infos
+    def get_url_infos(self) -> Mapping[Url, UrlInfo]:
+        return self.pages

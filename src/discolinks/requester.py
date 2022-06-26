@@ -31,12 +31,8 @@ class Requester:
         """
         Fetch a page from the given HTTP URL.
         """
-        logger.debug("GET %s", url)
-
-        if use_head:
-            method = "HEAD"
-        else:
-            method = "GET"
+        method = "HEAD" if use_head else "GET"
+        logger.debug("%s %s", method, url)
 
         try:
             response = await self.client.request(method=method, url=url.full)

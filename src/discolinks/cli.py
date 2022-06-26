@@ -1,15 +1,15 @@
 import asyncio
 import logging
-from typing import AbstractSet, Mapping, Optional
+from typing import AbstractSet, Optional
 from urllib.parse import urldefrag, urlparse
 
 import attrs
 import click
 
-from . import analyzer, export, html
+from . import analyzer, export, html, outcome, text
 from .core import Url
 from .link_store import LinkStore, UrlInfo
-from .requester import GetResponse, Requester, RequestError
+from .requester import Requester
 
 logger = logging.getLogger(__name__)
 
@@ -28,41 +28,27 @@ def parse_url_arg(url: str) -> Optional[Url]:
 
 
 @attrs.frozen
-class LinkResult:
-    status_code: Optional[int]
+class InfoConverter(outcome.Converter[UrlInfo]):
+    url: Url
+    with_links: bool
 
-    def ok(self):
-        return self.status_code is not None and not (400 <= self.status_code < 600)
+    def convert_redirect(self, redirect: outcome.Redirect) -> UrlInfo:
+        return UrlInfo(result=redirect, links=None)
 
+    def convert_page(self, page: outcome.Page) -> UrlInfo:
+        if self.with_links:
+            links = html.get_links(body=page.body, url=self.url)
+            return UrlInfo(result=page, links=links)
+        else:
+            return UrlInfo(result=page, links=None)
 
-@attrs.frozen
-class LinkResponse:
-    result: LinkResult
-    response: Optional[GetResponse]
-
-
-async def request_link_head(requester: Requester, url: Url) -> LinkResult:
-    try:
-        response = await requester.head(url)
-    except RequestError:
-        return LinkResult(status_code=None)
-
-    return LinkResult(status_code=response.status_code)
+    def convert_request_error(self, error: outcome.RequestError) -> UrlInfo:
+        return UrlInfo(result=error, links=None)
 
 
-async def request_link_get(requester: Requester, url: Url) -> LinkResponse:
-    try:
-        response = await requester.get(url)
-    except RequestError:
-        return LinkResponse(
-            result=LinkResult(status_code=None),
-            response=None,
-        )
-
-    return LinkResponse(
-        result=LinkResult(status_code=response.status_code),
-        response=response,
-    )
+def get_url_info(url: Url, result: outcome.Result, with_links: bool) -> UrlInfo:
+    converter = InfoConverter(url=url, with_links=with_links)
+    return result.convert_with(converter)
 
 
 async def investigate_url(
@@ -79,34 +65,21 @@ async def investigate_url(
     """
 
     if url.netloc != start_url.netloc:
-        result = await request_link_head(requester=requester, url=url)
+        result = await requester.get(url=url, use_head=True)
 
-        if result.status_code == 405:
-            response = await request_link_get(requester=requester, url=url)
-            result = response.result
+        if result.status_code() == 405:  # method not allowed
+            result = await requester.get(url=url)
 
         return link_store.add_page(
             url=url,
-            info=UrlInfo(
-                status_code=result.status_code,
-                links=None,
-            ),
+            info=get_url_info(result=result, url=url, with_links=False),
         )
 
-    link_response = await request_link_get(requester=requester, url=url)
-
-    if link_response.result.ok():
-        assert link_response.response is not None
-        page_links = html.get_links(body=link_response.response.body, url=url)
-    else:
-        page_links = None
+    result = await requester.get(url=url)
 
     return link_store.add_page(
         url=url,
-        info=UrlInfo(
-            status_code=link_response.result.status_code,
-            links=page_links,
-        ),
+        info=get_url_info(result=result, url=url, with_links=result.ok()),
     )
 
 
@@ -178,51 +151,36 @@ async def main_async(
     start_url: Url,
 ):
     requester = Requester()
+    next_url: Optional[Url] = start_url
 
-    try:
-        response = await requester.get(start_url)
-    except RequestError as error:
-        logger.error("%s", error.msg)
+    while next_url is not None:
+        url = next_url
+        result = await requester.get(url)
+        next_url = result.redirect_url()
+        new_urls = link_store.add_page(
+            url=url,
+            info=get_url_info(result=result, url=url, with_links=True),
+        )
+        if next_url is not None and next_url not in new_urls:
+            logger.error("Detected circular redirects. Aborting.")
+            exit(1)
+
+    error_msg = result.error_msg()
+    if error_msg is not None:
+        logger.error("%s", error_msg)
         exit(1)
 
-    if not response.ok():
-        logger.error("Bad response status code: %d", response.status_code)
+    if not result.ok():
+        logger.error("Bad response status code: %d", result.status_code())
         exit(1)
-
-    links = html.get_links(body=response.body, url=start_url)
-    first_urls = link_store.add_page(
-        url=start_url,
-        info=UrlInfo(
-            status_code=response.status_code,
-            links=links,
-        ),
-    )
 
     await find_links(
         max_parallel_requests=max_parallel_requests,
         requester=requester,
         link_store=link_store,
-        start_url=start_url,
-        first_urls=first_urls,
+        start_url=url,
+        first_urls=new_urls,
     )
-
-
-def print_txt_results(pages: Mapping[Url, analyzer.Page]) -> int:
-    ok = True
-
-    for (url, info) in pages.items():
-        bad_links = [link for link in info.links if not link.ok()]
-
-        if not bad_links:
-            continue
-
-        ok = False
-        print(f"{url}")
-
-        for link in bad_links:
-            print(f"  - {link.href}: {link.destination.status_code}")
-
-    return 0 if ok else 1
 
 
 @click.command()
@@ -269,10 +227,11 @@ def main(verbose: bool, max_parallel_requests: int, to_json: bool, url: str) -> 
 
     url_infos = link_store.get_url_infos()
     pages = analyzer.analyze(url_infos)
+    ok = all(link.ok() for (_, page) in pages.items() for link in page.links)
 
     if to_json:
         print(export.dump_json(pages=pages))
-        ok = all(link.ok() for (_, page) in pages.items() for link in page.links)
         exit(0 if ok else 1)
 
-    exit(print_txt_results(pages=pages))
+    text.print_results(pages=pages)
+    exit(0 if ok else 1)

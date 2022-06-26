@@ -27,8 +27,9 @@ def test_text(http_server) -> None:
     assert result.returncode == 1
     assert result.stdout.decode() == util.output_str(
         """
-        http://localhost:5000
-          - /foo: 404
+        📂 Results: 1 links (0 ok, 1 failed)
+        └── 📄 http://localhost:5000
+            └── 🔗 /foo: 404
         """
     )
 

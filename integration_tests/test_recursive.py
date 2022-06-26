@@ -30,7 +30,9 @@ def test_text(http_server) -> None:
     )
 
     assert result.returncode == 0
-    assert result.stdout.decode() == ""
+    assert result.stdout.decode() == util.output_str(
+        "📂 Results: 3 links (3 ok, 0 failed)"
+    )
 
 
 @pytest.mark.parametrize(

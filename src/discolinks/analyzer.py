@@ -38,20 +38,52 @@ def make_chain(url_infos: Mapping[Url, UrlInfo], start_url: Url):
     return chain
 
 
-def analyze(url_infos: Mapping[Url, UrlInfo]) -> Mapping[Url, Page]:
-    return {
-        url: Page(
-            links=tuple(
-                LinkResult(
-                    href=link.href,
-                    url=link.url,
-                    results=outcome.Results(
-                        chain=make_chain(url_infos=url_infos, start_url=link.url)
-                    ),
-                )
-                for link in info.links
+@attrs.define
+class Stats:
+    ok: int = attrs.field(default=0)
+    failed: int = attrs.field(default=0)
+
+    @property
+    def total(self) -> int:
+        return self.ok + self.failed
+
+    def add(self, ok: bool) -> None:
+        if ok:
+            self.ok += 1
+        else:
+            self.failed += 1
+
+
+@attrs.frozen
+class Analysis:
+    stats: Stats
+    pages: Mapping[Url, Page]
+
+    def ok(self) -> bool:
+        return self.stats.failed == 0
+
+
+def analyze(url_infos: Mapping[Url, UrlInfo]) -> Analysis:
+    pages = {}
+    stats = Stats()
+
+    for (url, info) in url_infos.items():
+        if info.links is None:
+            continue
+
+        links = []
+
+        for link in info.links:
+            result = LinkResult(
+                href=link.href,
+                url=link.url,
+                results=outcome.Results(
+                    chain=make_chain(url_infos=url_infos, start_url=link.url)
+                ),
             )
-        )
-        for (url, info) in url_infos.items()
-        if info.links is not None
-    }
+            stats.add(ok=result.ok())
+            links.append(result)
+
+        pages[url] = Page(links=links)
+
+    return Analysis(pages=pages, stats=stats)

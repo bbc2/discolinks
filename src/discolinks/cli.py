@@ -244,12 +244,12 @@ def main(verbose: bool, max_parallel_requests: int, to_json: bool, url: str) -> 
         )
 
     url_infos = link_store.get_url_infos()
-    pages = analyzer.analyze(url_infos)
-    ok = all(link.ok() for (_, page) in pages.items() for link in page.links)
+    analysis = analyzer.analyze(url_infos)
+    ok = analysis.ok()
 
     if to_json:
-        print(export.dump_json(pages=pages))
-        exit(0 if ok else 1)
+        print(export.dump_json(analysis=analysis))
+    else:
+        text.print_results(analysis=analysis)
 
-    text.print_results(pages=pages)
     exit(0 if ok else 1)

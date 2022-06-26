@@ -4,7 +4,7 @@ from typing import Any, Mapping, Sequence
 import attrs
 
 from . import outcome
-from .analyzer import LinkResult, Page
+from .analyzer import Analysis, LinkResult, Page
 from .core import Url
 
 
@@ -53,6 +53,6 @@ def pages_to_json(pages: Mapping[Url, Page]) -> Any:
     return {url.full: page_to_json(page) for (url, page) in pages.items()}
 
 
-def dump_json(pages: Mapping[Url, Page]) -> str:
-    obj = pages_to_json(pages=pages)
+def dump_json(analysis: Analysis) -> str:
+    obj = pages_to_json(pages=analysis.pages)
     return json.dumps(obj)

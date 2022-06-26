@@ -14,10 +14,12 @@ Features:
 
 ```bash
 $ discolinks --url https://example.net
-https://example.net/foo
-  status code: 404
-  origins:
-    https://example.net: /foo
+📂 Results: 13 links (10 ok, 3 failed)
+├── 📄 https://example.net/foo
+│   ├── 🔗 /bad_absolute_href: 302 → 404
+│   └── 🔗 bad_relative_href: 404
+└── 📄 https://example.net/bar
+    └── 🔗 https://example.org/bad_external_href: Connection error
 ```
 
 ## Development

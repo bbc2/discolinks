@@ -42,10 +42,11 @@ def test_text(http_server) -> None:
     assert result.returncode == 1
     assert result.stdout.decode() == util.output_str(
         """
-        http://localhost:5000
-          - /bar: 302 → 404
-        http://localhost:5000/
-          - /bar: 302 → 404
+        📂 Results: 5 links (3 ok, 2 failed)
+        ├── 📄 http://localhost:5000
+        │   └── 🔗 /bar: 302 → 404
+        └── 📄 http://localhost:5000/
+            └── 🔗 /bar: 302 → 404
         """
     )
 

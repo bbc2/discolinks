@@ -30,10 +30,13 @@ def test_json(http_server) -> None:
             "links": [
                 {
                     "href": "http://localhost:5001",
-                    "destination": {
-                        "url": "http://localhost:5001",
-                        "status_code": None,
-                    },
+                    "url": "http://localhost:5001",
+                    "results": [
+                        {
+                            "type": "request_error",
+                            "message": "All connection attempts failed",
+                        },
+                    ],
                 },
             ],
         },

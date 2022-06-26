@@ -1,21 +1,45 @@
 import json
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
-from .analyzer import Destination, LinkResult, Page
+import attrs
+
+from . import outcome
+from .analyzer import LinkResult, Page
 from .core import Url
 
 
-def destination_to_json(destination: Destination) -> Any:
-    return {
-        "url": destination.url.full,
-        "status_code": destination.status_code,
-    }
+@attrs.frozen
+class Converter(outcome.Converter[Any]):
+    def convert_page(self, page: outcome.Page) -> Any:
+        return {
+            "type": "response",
+            "status_code": page.code,
+        }
+
+    def convert_redirect(self, redirect: outcome.Redirect) -> Any:
+        return {
+            "type": "redirect",
+            "status_code": redirect.code,
+            "value": redirect.ref,
+            "url": str(redirect.url),
+        }
+
+    def convert_request_error(self, error: outcome.RequestError) -> Any:
+        return {
+            "type": "request_error",
+            "message": str(error.msg),
+        }
+
+
+def results_to_json(results: outcome.Results) -> Sequence[Any]:
+    return results.convert_with(Converter())
 
 
 def link_to_json(link: LinkResult) -> Any:
     return {
         "href": link.href,
-        "destination": destination_to_json(link.destination),
+        "url": str(link.url),
+        "results": results_to_json(link.results),
     }
 
 

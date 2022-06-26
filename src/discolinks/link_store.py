@@ -2,16 +2,21 @@ from typing import Mapping, Optional, Sequence
 
 import attrs
 
+from . import outcome
 from .core import Link, Url
 
 
 @attrs.frozen
 class UrlInfo:
-    status_code: Optional[int]
+    result: outcome.Result
     links: Optional[Sequence[Link]]
 
     def link_urls(self) -> frozenset[Url]:
-        if self.links is None:
+        redirect_url = self.result.redirect_url()
+
+        if redirect_url is not None:
+            return frozenset([redirect_url])
+        elif self.links is None:
             return frozenset()
         else:
             return frozenset(link.url for link in self.links)

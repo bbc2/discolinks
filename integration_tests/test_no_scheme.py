@@ -30,10 +30,13 @@ def test_json(http_server) -> None:
             "links": [
                 {
                     "href": "",
-                    "destination": {
-                        "url": "http://localhost:5000",
-                        "status_code": 200,
-                    },
+                    "url": "http://localhost:5000",
+                    "results": [
+                        {
+                            "type": "response",
+                            "status_code": 200,
+                        }
+                    ],
                 },
             ],
         },

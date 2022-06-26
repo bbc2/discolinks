@@ -1,12 +1,12 @@
 import json
 import subprocess
 
-from flask import Blueprint, redirect
+from flask import Blueprint, abort, redirect
 
 from . import util
 
 
-def make_blueprint() -> Blueprint:
+def make_blueprint(last_redirect_ok: bool) -> Blueprint:
     blueprint = Blueprint("main", __name__)
 
     @blueprint.route("/")
@@ -15,13 +15,20 @@ def make_blueprint() -> Blueprint:
 
     @blueprint.route("/foo")
     def foo():
-        return """<a href="/">\n"""
+        return redirect("/bar")
+
+    @blueprint.route("/bar")
+    def bar():
+        if last_redirect_ok:
+            return """<a href="/">\n"""
+        else:
+            abort(404)
 
     return blueprint
 
 
-def test_json(http_server) -> None:
-    http_server(blueprint=make_blueprint(), port=5000)
+def test_json_ok(http_server) -> None:
+    http_server(blueprint=make_blueprint(last_redirect_ok=True), port=5000)
 
     result = subprocess.run(
         util.command(
@@ -33,7 +40,7 @@ def test_json(http_server) -> None:
 
     assert result.returncode == 0
     assert json.loads(result.stdout.decode()) == {
-        "http://localhost:5000/foo": {
+        "http://localhost:5000/bar": {
             "links": [
                 {
                     "href": "/",
@@ -46,6 +53,12 @@ def test_json(http_server) -> None:
                             "url": "http://localhost:5000/foo",
                         },
                         {
+                            "type": "redirect",
+                            "status_code": 302,
+                            "value": "/bar",
+                            "url": "http://localhost:5000/bar",
+                        },
+                        {
                             "type": "response",
                             "status_code": 200,
                         },
@@ -54,3 +67,18 @@ def test_json(http_server) -> None:
             ],
         },
     }
+
+
+def test_json_not_found(http_server) -> None:
+    http_server(blueprint=make_blueprint(last_redirect_ok=False), port=5000)
+
+    result = subprocess.run(
+        util.command(
+            url="http://localhost:5000",
+            json=True,
+        ),
+        stdout=subprocess.PIPE,
+    )
+
+    assert result.returncode == 1
+    assert result.stdout.decode() == ""

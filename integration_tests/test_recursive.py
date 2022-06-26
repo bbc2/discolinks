@@ -59,10 +59,13 @@ def test_json(max_parallel_requests: int, http_server) -> None:
             "links": [
                 {
                     "href": "/foo",
-                    "destination": {
-                        "url": "http://localhost:5000/foo",
-                        "status_code": 200,
-                    },
+                    "url": "http://localhost:5000/foo",
+                    "results": [
+                        {
+                            "type": "response",
+                            "status_code": 200,
+                        }
+                    ],
                 },
             ],
         },
@@ -70,10 +73,13 @@ def test_json(max_parallel_requests: int, http_server) -> None:
             "links": [
                 {
                     "href": "/foo",
-                    "destination": {
-                        "url": "http://localhost:5000/foo",
-                        "status_code": 200,
-                    },
+                    "url": "http://localhost:5000/foo",
+                    "results": [
+                        {
+                            "type": "response",
+                            "status_code": 200,
+                        }
+                    ],
                 },
             ],
         },
@@ -81,10 +87,13 @@ def test_json(max_parallel_requests: int, http_server) -> None:
             "links": [
                 {
                     "href": "/",
-                    "destination": {
-                        "url": "http://localhost:5000/",
-                        "status_code": 200,
-                    },
+                    "url": "http://localhost:5000/",
+                    "results": [
+                        {
+                            "type": "response",
+                            "status_code": 200,
+                        }
+                    ],
                 },
             ],
         },

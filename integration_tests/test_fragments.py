@@ -48,17 +48,23 @@ def test_json(http_server, url) -> None:
             "links": [
                 {
                     "href": "/foo#bar",
-                    "destination": {
-                        "url": "http://localhost:5000/foo",
-                        "status_code": 200,
-                    },
+                    "url": "http://localhost:5000/foo",
+                    "results": [
+                        {
+                            "type": "response",
+                            "status_code": 200,
+                        }
+                    ],
                 },
                 {
                     "href": "/foo#baz",
-                    "destination": {
-                        "url": "http://localhost:5000/foo",
-                        "status_code": 200,
-                    },
+                    "url": "http://localhost:5000/foo",
+                    "results": [
+                        {
+                            "type": "response",
+                            "status_code": 200,
+                        }
+                    ],
                 },
             ],
         },

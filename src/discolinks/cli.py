@@ -5,10 +5,13 @@ from urllib.parse import urldefrag, urlparse
 
 import attrs
 import click
+import rich.console
+from rich.logging import RichHandler
 
 from . import analyzer, export, html, outcome, text
 from .core import Url
 from .link_store import LinkStore, UrlInfo
+from .monitor import Monitor, new_monitor
 from .requester import Requester
 
 logger = logging.getLogger(__name__)
@@ -87,27 +90,35 @@ async def work(
     queue: asyncio.Queue[Url],
     requester: Requester,
     link_store: LinkStore,
+    monitor: Monitor,
     start_url: Url,
 ):
     while True:
-        url = await queue.get()
+        task_url = await queue.get()
+        monitor.on_task_start(queued=queue.qsize())
         try:
             new_urls = await investigate_url(
                 requester=requester,
                 link_store=link_store,
                 start_url=start_url,
-                url=url,
+                url=task_url,
             )
             for url in new_urls:
                 queue.put_nowait(url)
         finally:
             queue.task_done()
 
+        monitor.on_task_done(
+            queued=queue.qsize(),
+            result=link_store.get_url_infos()[task_url].result,
+        )
+
 
 async def find_links(
     max_parallel_requests: int,
     requester: Requester,
     link_store: LinkStore,
+    monitor: Monitor,
     start_url: Url,
     first_urls: frozenset[Url],
 ) -> None:
@@ -124,6 +135,7 @@ async def find_links(
                 queue=queue,
                 requester=requester,
                 link_store=link_store,
+                monitor=monitor,
                 start_url=start_url,
             ),
         )
@@ -148,6 +160,7 @@ async def find_links(
 async def main_async(
     max_parallel_requests: int,
     link_store: LinkStore,
+    monitor: Monitor,
     start_url: Url,
 ):
     requester = Requester()
@@ -161,9 +174,12 @@ async def main_async(
             url=url,
             info=get_url_info(result=result, url=url, with_links=True),
         )
-        if next_url is not None and next_url not in new_urls:
-            logger.error("Detected circular redirects. Aborting.")
-            exit(1)
+        if next_url is not None:
+            monitor.print(f"redirected to {next_url}")
+
+            if next_url not in new_urls:
+                logger.error("Detected circular redirects. Aborting.")
+                exit(1)
 
     error_msg = result.error_msg()
     if error_msg is not None:
@@ -178,6 +194,7 @@ async def main_async(
         max_parallel_requests=max_parallel_requests,
         requester=requester,
         link_store=link_store,
+        monitor=monitor,
         start_url=url,
         first_urls=new_urls,
     )
@@ -203,11 +220,11 @@ async def main_async(
 )
 @click.option("--url", required=True, help="URL where crawling will start.")
 def main(verbose: bool, max_parallel_requests: int, to_json: bool, url: str) -> None:
-    if verbose:
-        logging.basicConfig(level=logging.DEBUG)
-        logging.getLogger("discolinks").setLevel(logging.DEBUG)
-
-    logging.getLogger().setLevel(logging.WARNING)
+    console = rich.console.Console(stderr=True)
+    main_logger = logging.getLogger("discolinks")
+    level = logging.DEBUG if verbose else logging.WARNING
+    main_logger.setLevel(level)
+    main_logger.addHandler(RichHandler(console=console, show_time=False))
 
     start_url = parse_url_arg(url)
 
@@ -216,14 +233,15 @@ def main(verbose: bool, max_parallel_requests: int, to_json: bool, url: str) -> 
         exit(1)
 
     link_store = LinkStore()
-
-    asyncio.run(
-        main_async(
-            max_parallel_requests=max_parallel_requests,
-            link_store=link_store,
-            start_url=start_url,
+    with new_monitor(console=console) as monitor:
+        asyncio.run(
+            main_async(
+                max_parallel_requests=max_parallel_requests,
+                link_store=link_store,
+                monitor=monitor,
+                start_url=start_url,
+            )
         )
-    )
 
     url_infos = link_store.get_url_infos()
     pages = analyzer.analyze(url_infos)

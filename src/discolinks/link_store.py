@@ -42,5 +42,8 @@ class LinkStore:
         self.seen_urls.update(new_urls)
         return new_urls
 
+    def count(self) -> int:
+        return len(self.seen_urls)
+
     def get_url_infos(self) -> Mapping[Url, UrlInfo]:
         return self.pages

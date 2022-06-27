@@ -12,7 +12,7 @@ from discolinks.html import get_hrefs, parse_href
         ("<body></body>", []),
         ("""<a href="foo">""", ["foo"]),
         ("""<a href="foo#bar">""", ["foo#bar"]),
-        ("""<a href="mailto:foo@example.net">""", []),
+        ("""<a href="mailto:foo@example.net">""", ["mailto:foo@example.net"]),
     ],
 )
 def test_get_hrefs(body: str, expected: Sequence[str]):
@@ -58,6 +58,16 @@ def test_get_hrefs(body: str, expected: Sequence[str]):
             "http://example.org",
             Url.from_str("http://example.net"),
             Url.from_str("http://example.org"),
+        ),
+        (
+            "mailto:foo@example.net",
+            Url.from_str("http://example.net"),
+            None,
+        ),
+        (
+            "tel:+0123",
+            Url.from_str("http://example.net"),
+            None,
         ),
     ],
 )

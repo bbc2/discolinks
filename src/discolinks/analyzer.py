@@ -4,7 +4,7 @@ import attrs
 
 from . import outcome
 from .core import Url
-from .link_store import UrlInfo
+from .url_store import UrlInfo
 
 
 @attrs.frozen
@@ -22,7 +22,17 @@ class Page:
     links: Sequence[LinkResult]
 
 
-def make_chain(url_infos: Mapping[Url, UrlInfo], start_url: Url):
+def make_chain(
+    url_infos: Mapping[Url, UrlInfo],
+    start_url: Url,
+) -> Sequence[outcome.Result]:
+    """
+    Build and return a redirect chain of URL results.
+
+    Starting with a given URL, this follows redirects to determine the path leading to a
+    web page (or a connection error).
+    """
+
     url = start_url
     chain: list[outcome.Result] = []
 
@@ -64,6 +74,10 @@ class Analysis:
 
 
 def analyze(url_infos: Mapping[Url, UrlInfo]) -> Analysis:
+    """
+    Analyze URL data obtained from web scraping.
+    """
+
     pages = {}
     stats = Stats()
 

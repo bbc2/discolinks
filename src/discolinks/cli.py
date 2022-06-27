@@ -1,23 +1,32 @@
 import asyncio
 import logging
-from typing import AbstractSet, Optional
+from typing import Optional
 from urllib.parse import urldefrag, urlparse
 
-import attrs
 import click
 import rich.console
 from rich.logging import RichHandler
 
-from . import analyzer, export, html, outcome, text
+from . import analyzer, export, text
 from .core import Url
-from .link_store import LinkStore, UrlInfo
+from .link_extractor import get_links
 from .monitor import Monitor, new_monitor
 from .requester import Requester
+from .url_store import UrlInfo, UrlStore
+from .worker import work
 
 logger = logging.getLogger(__name__)
 
 
 def parse_url_arg(url: str) -> Optional[Url]:
+    """
+    Parse a string representing a URL.
+
+    This is intended for the URL provided as argument to the program. For example, if the
+    scheme is missing, it assumes the user meant to use the `http` scheme, like many other
+    programs using web URLs.
+    """
+
     if not url.startswith("http://") and not url.startswith("https://"):
         url = f"http://{url}"
 
@@ -30,94 +39,10 @@ def parse_url_arg(url: str) -> Optional[Url]:
     return Url.from_str(url)
 
 
-@attrs.frozen
-class InfoConverter(outcome.Converter[UrlInfo]):
-    url: Url
-    with_links: bool
-
-    def convert_redirect(self, redirect: outcome.Redirect) -> UrlInfo:
-        return UrlInfo(result=redirect, links=None)
-
-    def convert_page(self, page: outcome.Page) -> UrlInfo:
-        if self.with_links:
-            links = html.get_links(body=page.body, url=self.url)
-            return UrlInfo(result=page, links=links)
-        else:
-            return UrlInfo(result=page, links=None)
-
-    def convert_request_error(self, error: outcome.RequestError) -> UrlInfo:
-        return UrlInfo(result=error, links=None)
-
-
-def get_url_info(url: Url, result: outcome.Result, with_links: bool) -> UrlInfo:
-    converter = InfoConverter(url=url, with_links=with_links)
-    return result.convert_with(converter)
-
-
-async def investigate_url(
-    requester: Requester,
-    link_store: LinkStore,
-    start_url: Url,
-    url: Url,
-) -> AbstractSet[Url]:
-    """
-    Follow HTTP link and return new links if any are found.
-
-    For external websites this only does a `HEAD` to know if the link is broken or not, so
-    no new links are returned.
-    """
-
-    if url.netloc != start_url.netloc:
-        result = await requester.get(url=url, use_head=True)
-
-        if result.status_code() == 405:  # method not allowed
-            result = await requester.get(url=url)
-
-        return link_store.add_page(
-            url=url,
-            info=get_url_info(result=result, url=url, with_links=False),
-        )
-
-    result = await requester.get(url=url)
-
-    return link_store.add_page(
-        url=url,
-        info=get_url_info(result=result, url=url, with_links=result.ok()),
-    )
-
-
-async def work(
-    queue: asyncio.Queue[Url],
-    requester: Requester,
-    link_store: LinkStore,
-    monitor: Monitor,
-    start_url: Url,
-):
-    while True:
-        task_url = await queue.get()
-        monitor.on_task_start(queued=queue.qsize())
-        try:
-            new_urls = await investigate_url(
-                requester=requester,
-                link_store=link_store,
-                start_url=start_url,
-                url=task_url,
-            )
-            for url in new_urls:
-                queue.put_nowait(url)
-        finally:
-            queue.task_done()
-
-        monitor.on_task_done(
-            queued=queue.qsize(),
-            result=link_store.get_url_infos()[task_url].result,
-        )
-
-
 async def find_links(
     max_parallel_requests: int,
     requester: Requester,
-    link_store: LinkStore,
+    url_store: UrlStore,
     monitor: Monitor,
     start_url: Url,
     first_urls: frozenset[Url],
@@ -134,7 +59,7 @@ async def find_links(
             work(
                 queue=queue,
                 requester=requester,
-                link_store=link_store,
+                url_store=url_store,
                 monitor=monitor,
                 start_url=start_url,
             ),
@@ -159,7 +84,7 @@ async def find_links(
 
 async def main_async(
     max_parallel_requests: int,
-    link_store: LinkStore,
+    url_store: UrlStore,
     monitor: Monitor,
     start_url: Url,
 ):
@@ -170,9 +95,9 @@ async def main_async(
         url = next_url
         result = await requester.get(url)
         next_url = result.redirect_url()
-        new_urls = link_store.add_page(
+        new_urls = url_store.add_page(
             url=url,
-            info=get_url_info(result=result, url=url, with_links=True),
+            info=UrlInfo(result=result, links=get_links(url=url, result=result)),
         )
         if next_url is not None:
             monitor.print(f"redirected to {next_url}")
@@ -193,7 +118,7 @@ async def main_async(
     await find_links(
         max_parallel_requests=max_parallel_requests,
         requester=requester,
-        link_store=link_store,
+        url_store=url_store,
         monitor=monitor,
         start_url=url,
         first_urls=new_urls,
@@ -232,18 +157,18 @@ def main(verbose: bool, max_parallel_requests: int, to_json: bool, url: str) -> 
         logger.error("Invalid URL: %s", url)
         exit(1)
 
-    link_store = LinkStore()
+    url_store = UrlStore()
     with new_monitor(console=console) as monitor:
         asyncio.run(
             main_async(
                 max_parallel_requests=max_parallel_requests,
-                link_store=link_store,
+                url_store=url_store,
                 monitor=monitor,
                 start_url=start_url,
             )
         )
 
-    url_infos = link_store.get_url_infos()
+    url_infos = url_store.get_url_infos()
     analysis = analyzer.analyze(url_infos)
     ok = analysis.ok()
 

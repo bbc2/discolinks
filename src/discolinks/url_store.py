@@ -23,8 +23,8 @@ class UrlInfo:
 
 
 @attrs.frozen
-class LinkStore:
-    pages: dict[Url, UrlInfo] = attrs.field(init=False, factory=dict)
+class UrlStore:
+    url_infos: dict[Url, UrlInfo] = attrs.field(init=False, factory=dict)
     seen_urls: set[Url] = attrs.field(init=False, factory=set)
 
     def add_page(self, url: Url, info: UrlInfo) -> frozenset[Url]:
@@ -35,8 +35,8 @@ class LinkStore:
         once.
         """
 
-        assert url not in self.pages, f"URL already stored: {url}"
-        self.pages[url] = info
+        assert url not in self.url_infos, f"URL already stored: {url}"
+        self.url_infos[url] = info
         self.seen_urls.add(url)
         new_urls = info.link_urls() - self.seen_urls
         self.seen_urls.update(new_urls)
@@ -46,4 +46,4 @@ class LinkStore:
         return len(self.seen_urls)
 
     def get_url_infos(self) -> Mapping[Url, UrlInfo]:
-        return self.pages
+        return self.url_infos

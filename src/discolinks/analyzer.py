@@ -4,7 +4,7 @@ import attrs
 
 from . import outcome
 from .core import Url
-from .link_store import UrlInfo
+from .url_store import UrlInfo
 
 
 @attrs.frozen

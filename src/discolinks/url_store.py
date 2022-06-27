@@ -23,7 +23,7 @@ class UrlInfo:
 
 
 @attrs.frozen
-class LinkStore:
+class UrlStore:
     pages: dict[Url, UrlInfo] = attrs.field(init=False, factory=dict)
     seen_urls: set[Url] = attrs.field(init=False, factory=set)
 

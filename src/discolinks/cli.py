@@ -10,9 +10,9 @@ from rich.logging import RichHandler
 
 from . import analyzer, export, html, outcome, text
 from .core import Url
-from .link_store import LinkStore, UrlInfo
 from .monitor import Monitor, new_monitor
 from .requester import Requester
+from .url_store import UrlInfo, UrlStore
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +56,7 @@ def get_url_info(url: Url, result: outcome.Result, with_links: bool) -> UrlInfo:
 
 async def investigate_url(
     requester: Requester,
-    link_store: LinkStore,
+    url_store: UrlStore,
     start_url: Url,
     url: Url,
 ) -> AbstractSet[Url]:
@@ -73,14 +73,14 @@ async def investigate_url(
         if result.status_code() == 405:  # method not allowed
             result = await requester.get(url=url)
 
-        return link_store.add_page(
+        return url_store.add_page(
             url=url,
             info=get_url_info(result=result, url=url, with_links=False),
         )
 
     result = await requester.get(url=url)
 
-    return link_store.add_page(
+    return url_store.add_page(
         url=url,
         info=get_url_info(result=result, url=url, with_links=result.ok()),
     )
@@ -89,7 +89,7 @@ async def investigate_url(
 async def work(
     queue: asyncio.Queue[Url],
     requester: Requester,
-    link_store: LinkStore,
+    url_store: UrlStore,
     monitor: Monitor,
     start_url: Url,
 ):
@@ -99,7 +99,7 @@ async def work(
         try:
             new_urls = await investigate_url(
                 requester=requester,
-                link_store=link_store,
+                url_store=url_store,
                 start_url=start_url,
                 url=task_url,
             )
@@ -110,14 +110,14 @@ async def work(
 
         monitor.on_task_done(
             queued=queue.qsize(),
-            result=link_store.get_url_infos()[task_url].result,
+            result=url_store.get_url_infos()[task_url].result,
         )
 
 
 async def find_links(
     max_parallel_requests: int,
     requester: Requester,
-    link_store: LinkStore,
+    url_store: UrlStore,
     monitor: Monitor,
     start_url: Url,
     first_urls: frozenset[Url],
@@ -134,7 +134,7 @@ async def find_links(
             work(
                 queue=queue,
                 requester=requester,
-                link_store=link_store,
+                url_store=url_store,
                 monitor=monitor,
                 start_url=start_url,
             ),
@@ -159,7 +159,7 @@ async def find_links(
 
 async def main_async(
     max_parallel_requests: int,
-    link_store: LinkStore,
+    url_store: UrlStore,
     monitor: Monitor,
     start_url: Url,
 ):
@@ -170,7 +170,7 @@ async def main_async(
         url = next_url
         result = await requester.get(url)
         next_url = result.redirect_url()
-        new_urls = link_store.add_page(
+        new_urls = url_store.add_page(
             url=url,
             info=get_url_info(result=result, url=url, with_links=True),
         )
@@ -193,7 +193,7 @@ async def main_async(
     await find_links(
         max_parallel_requests=max_parallel_requests,
         requester=requester,
-        link_store=link_store,
+        url_store=url_store,
         monitor=monitor,
         start_url=url,
         first_urls=new_urls,
@@ -232,18 +232,18 @@ def main(verbose: bool, max_parallel_requests: int, to_json: bool, url: str) -> 
         logger.error("Invalid URL: %s", url)
         exit(1)
 
-    link_store = LinkStore()
+    url_store = UrlStore()
     with new_monitor(console=console) as monitor:
         asyncio.run(
             main_async(
                 max_parallel_requests=max_parallel_requests,
-                link_store=link_store,
+                url_store=url_store,
                 monitor=monitor,
                 start_url=start_url,
             )
         )
 
-    url_infos = link_store.get_url_infos()
+    url_infos = url_store.get_url_infos()
     analysis = analyzer.analyze(url_infos)
     ok = analysis.ok()
 

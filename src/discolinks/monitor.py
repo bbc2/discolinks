@@ -32,6 +32,12 @@ class Stats:
 
 @attrs.frozen
 class Monitor:
+    """
+    Handle updates of the status bar during scraping.
+
+    Create an instance with `start` and finish the execution with `stop`.
+    """
+
     console: rich.console.Console
     status: rich.status.Status
     stats: Stats = attrs.field(init=False, factory=Stats)
@@ -69,6 +75,10 @@ class Monitor:
 
 @contextmanager
 def new_monitor(console: rich.console.Console) -> Iterator[Monitor]:
+    """
+    Yield a `Monitor` instance and ensure it is stopped properly.
+    """
+
     monitor = Monitor.start(console=console)
     try:
         yield monitor

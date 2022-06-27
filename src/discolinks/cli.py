@@ -18,6 +18,14 @@ logger = logging.getLogger(__name__)
 
 
 def parse_url_arg(url: str) -> Optional[Url]:
+    """
+    Parse a string representing a URL.
+
+    This is intended for the URL provided as argument to the program. For example, if the
+    scheme is missing, it assumes the user meant to use the `http` scheme, like many other
+    programs using web URLs.
+    """
+
     if not url.startswith("http://") and not url.startswith("https://"):
         url = f"http://{url}"
 

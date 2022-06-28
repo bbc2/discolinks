@@ -17,6 +17,9 @@ class Converter(outcome.Converter[str]):
     def convert_request_error(self, error: outcome.RequestError) -> str:
         return f"[red]{escape(str(error.msg))}[/red]"
 
+    def convert_unknown(self, unknown: outcome.Unknown) -> str:
+        assert False, "`Unknown` result isn't supposed to be shown"
+
 
 def print_results(analysis: analyzer.Analysis) -> None:
     failed_style = "bold dim" if analysis.ok() else "bold red"

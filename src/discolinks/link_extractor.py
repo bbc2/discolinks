@@ -19,6 +19,9 @@ class LinkExtractor(outcome.Converter[Optional[Sequence[Link]]]):
     def convert_request_error(self, error: outcome.RequestError) -> None:
         return None
 
+    def convert_unknown(self, unknown: outcome.Unknown) -> None:
+        return None
+
 
 def get_links(url: Url, result: outcome.Result) -> Optional[Sequence[Link]]:
     converter = LinkExtractor(url=url)

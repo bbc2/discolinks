@@ -1,4 +1,5 @@
 import logging
+import ssl
 
 import attrs
 import httpx
@@ -36,7 +37,7 @@ class Requester:
 
         try:
             response = await self.client.request(method=method, url=url.full)
-        except httpx.RequestError as error:
+        except (httpx.RequestError, ssl.SSLError) as error:
             return outcome.RequestError(msg=str(error))
 
         return httpx_to_result(response)

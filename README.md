@@ -1,6 +1,7 @@
 # discolinks
 
 [![Build Status][build_status_badge]][build_status_link]
+[![PyPI version][pypi_badge]][pypi_link]
 
 Discolinks looks for broken links on a website.
 
@@ -42,3 +43,5 @@ make check
 
 [build_status_badge]: https://github.com/bbc2/discolinks/actions/workflows/main.yml/badge.svg
 [build_status_link]: https://github.com/bbc2/discolinks/actions/workflows/main.yml
+[pypi_badge]: https://img.shields.io/pypi/v/discolinks
+[pypi_link]: https://pypi.org/project/discolinks/

@@ -30,16 +30,23 @@ def make_chain(
     Build and return a redirect chain of URL results.
 
     Starting with a given URL, this follows redirects to determine the path leading to a
-    web page (or a connection error).
+    web page, a connection error or a cancellation.
     """
 
     url = start_url
     chain: list[outcome.Result] = []
 
     while True:
-        result = url_infos[url].result
+        info = url_infos.get(url)
+
+        if info is None:
+            chain.append(outcome.Unknown())
+            break
+
+        result = info.result
         chain.append(result)
         redirect_url = result.redirect_url()
+
         if redirect_url is None:
             break
         else:

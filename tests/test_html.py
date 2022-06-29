@@ -60,6 +60,11 @@ def test_get_hrefs(body: str, expected: Sequence[str]):
             Url.from_str("http://example.org"),
         ),
         (
+            "//example.org",
+            Url.from_str("http://example.net"),
+            Url.from_str("http://example.org"),
+        ),
+        (
             "mailto:foo@example.net",
             Url.from_str("http://example.net"),
             None,

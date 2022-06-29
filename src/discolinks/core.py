@@ -19,8 +19,8 @@ class Url:
     @classmethod
     def from_str(cls, url: str) -> "Url":
         parsed = urlparse(url)
-        assert parsed.scheme
-        assert parsed.netloc
+        assert parsed.scheme, f"Invalid URL: {url}"
+        assert parsed.netloc, f"Invalid URL: {url}"
         return cls(
             full=urldefrag(url).url,
             scheme=parsed.scheme,

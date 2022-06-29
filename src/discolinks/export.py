@@ -30,6 +30,11 @@ class Converter(outcome.Converter[Any]):
             "message": str(error.msg),
         }
 
+    def convert_unknown(self, unknown: outcome.Unknown) -> Any:
+        return {
+            "type": "unknown",
+        }
+
 
 def results_to_json(results: outcome.Results) -> Sequence[Any]:
     return results.convert_with(Converter())

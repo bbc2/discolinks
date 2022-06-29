@@ -100,7 +100,7 @@ async def main_async(
             info=UrlInfo(result=result, links=get_links(url=url, result=result)),
         )
         if next_url is not None:
-            monitor.print(f"redirected to {next_url}")
+            logger.info(f"Redirected to {next_url}")
 
             if next_url not in new_urls:
                 logger.error("Detected circular redirects. Aborting.")
@@ -147,7 +147,7 @@ async def main_async(
 def main(verbose: bool, max_parallel_requests: int, to_json: bool, url: str) -> None:
     console = rich.console.Console(stderr=True)
     main_logger = logging.getLogger("discolinks")
-    level = logging.DEBUG if verbose else logging.WARNING
+    level = logging.DEBUG if verbose else logging.INFO
     main_logger.setLevel(level)
     main_logger.addHandler(RichHandler(console=console, show_time=False))
 
@@ -158,19 +158,29 @@ def main(verbose: bool, max_parallel_requests: int, to_json: bool, url: str) -> 
         exit(1)
 
     url_store = UrlStore()
-    with new_monitor(console=console) as monitor:
-        asyncio.run(
-            main_async(
-                max_parallel_requests=max_parallel_requests,
-                url_store=url_store,
-                monitor=monitor,
-                start_url=start_url,
+
+    try:
+        with new_monitor(console=console) as monitor:
+            asyncio.run(
+                main_async(
+                    max_parallel_requests=max_parallel_requests,
+                    url_store=url_store,
+                    monitor=monitor,
+                    start_url=start_url,
+                )
             )
-        )
+    except KeyboardInterrupt:
+        logger.warning("Interrupted.")
+        interrupted = True
+    except Exception as exc:
+        logger.exception(exc)
+        interrupted = True
+    else:
+        interrupted = False
 
     url_infos = url_store.get_url_infos()
     analysis = analyzer.analyze(url_infos)
-    ok = analysis.ok()
+    ok = not interrupted and analysis.ok()
 
     if to_json:
         print(export.dump_json(analysis=analysis))

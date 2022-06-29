@@ -26,7 +26,10 @@ def parse_href(href: str, base_url: Url) -> Optional[Url]:
         return None
 
     if parsed.netloc:
-        url = href
+        if not parsed.scheme and href.startswith("//"):
+            url = f"http:{href}"
+        else:
+            url = href
     else:
         url = urljoin(base_url.full, href)
 

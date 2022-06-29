@@ -144,6 +144,10 @@ async def main_async(
     help="Export results as JSON to the standard output.",
 )
 @click.option("--url", required=True, help="URL where crawling will start.")
+@click.version_option(
+    prog_name="discolinks",
+    message="%(prog)s version %(version)s",
+)
 def main(verbose: bool, max_parallel_requests: int, to_json: bool, url: str) -> None:
     console = rich.console.Console(stderr=True)
     main_logger = logging.getLogger("discolinks")

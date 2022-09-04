@@ -14,15 +14,19 @@ def launch_process(target, kwargs) -> Process:
 
 @pytest.fixture
 def http_server():
-    created_servers = []
+    created_servers = {}
 
     def _make_server(blueprint: Blueprint, port: int) -> Process:
         app = server.create_app(blueprint=blueprint)
         process = launch_process(target=app.run, kwargs={"port": port})
-        created_servers.append(process)
+        created_servers[port] = process
         return process
 
     yield _make_server
 
-    for process in created_servers:
+    errors = []
+    for (port, process) in created_servers.items():
+        if process.exitcode is not None:
+            errors.append(f"Server failure for port {port}")
         process.terminate()
+    assert not errors

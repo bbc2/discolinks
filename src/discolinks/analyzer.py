@@ -88,7 +88,7 @@ def analyze(url_infos: Mapping[Url, UrlInfo]) -> Analysis:
     pages = {}
     stats = Stats()
 
-    for (url, info) in url_infos.items():
+    for url, info in url_infos.items():
         if info.links is None:
             continue
 

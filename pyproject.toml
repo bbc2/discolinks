@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "discolinks"
-version = "0.1.3"
+version = "0.2.0"
 description = "Command-line tool which checks a website for broken links."
 authors = ["Bertrand Bonnefoy-Claudet <bertrand@bertrandbc.com>"]
 license = "MIT"

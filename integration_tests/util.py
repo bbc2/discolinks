@@ -1,5 +1,5 @@
 import inspect
-from typing import Sequence
+from typing import Optional, Sequence
 
 
 def output_str(s: str) -> str:
@@ -9,9 +9,9 @@ def output_str(s: str) -> str:
 
 def command(
     url: str,
-    verbose: bool = None,
-    json: bool = None,
-    max_parallel_requests: int = None,
+    verbose: Optional[bool] = None,
+    json: Optional[bool] = None,
+    max_parallel_requests: Optional[int] = None,
 ) -> Sequence[str]:
     """
     Generate command-line strings based on function parameters.

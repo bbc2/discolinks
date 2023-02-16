@@ -30,7 +30,7 @@ def print_results(analysis: analyzer.Analysis) -> None:
     )
     tree = Tree(root_label, guide_style="dim")
 
-    for (url, info) in analysis.pages.items():
+    for url, info in analysis.pages.items():
         bad_links = [link for link in info.links if not link.ok()]
 
         if not bad_links:

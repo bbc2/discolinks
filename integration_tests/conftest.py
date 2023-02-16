@@ -25,7 +25,7 @@ def http_server():
     yield _make_server
 
     errors = []
-    for (port, process) in created_servers.items():
+    for port, process in created_servers.items():
         if process.exitcode is not None:
             errors.append(f"Server failure for port {port}")
         process.terminate()

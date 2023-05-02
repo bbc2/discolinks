@@ -1,5 +1,6 @@
 import logging
 import ssl
+from typing import Union
 
 import attrs
 import httpx
@@ -24,6 +25,13 @@ def httpx_to_result(response: httpx.Response) -> outcome.Result:
         )
 
 
+def httpx_to_error(error: Union[httpx.RequestError, ssl.SSLError]) -> str:
+    if isinstance(error, httpx.TimeoutException):
+        return "Network timeout"
+
+    return str(error)
+
+
 @attrs.frozen
 class Requester:
     client: httpx.AsyncClient = attrs.field(init=False, factory=httpx.AsyncClient)
@@ -38,6 +46,7 @@ class Requester:
         try:
             response = await self.client.request(method=method, url=url.full)
         except (httpx.RequestError, ssl.SSLError) as error:
-            return outcome.RequestError(msg=str(error))
+            msg = httpx_to_error(error)
+            return outcome.RequestError(msg=msg)
 
         return httpx_to_result(response)

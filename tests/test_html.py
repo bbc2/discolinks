@@ -13,6 +13,15 @@ from discolinks.html import get_hrefs, parse_href
         ("""<a href="foo">""", ["foo"]),
         ("""<a href="foo#bar">""", ["foo#bar"]),
         ("""<a href="mailto:foo@example.net">""", ["mailto:foo@example.net"]),
+        (
+            """
+            <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+            <svg>
+                <a href="foo"></a>
+            </svg>
+            """,
+            ["foo"],
+        ),
     ],
 )
 def test_get_hrefs(body: str, expected: Sequence[str]):

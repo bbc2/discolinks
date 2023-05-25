@@ -1,3 +1,4 @@
+import warnings
 from typing import Optional, Sequence
 from urllib.parse import urldefrag, urljoin, urlparse
 
@@ -7,7 +8,9 @@ from .core import Link, Url
 
 
 def get_hrefs(body: str) -> Sequence[str]:
-    soup = bs4.BeautifulSoup(body, features="html.parser")
+    with warnings.catch_warnings():
+        warnings.simplefilter(action="ignore", category=bs4.XMLParsedAsHTMLWarning)
+        soup = bs4.BeautifulSoup(body, features="html.parser")
 
     return [url for a in soup.find_all("a") if (url := a.attrs.get("href")) is not None]
 

@@ -95,6 +95,24 @@ class RequestError(Result):
 
 
 @attrs.frozen
+class Excluded(Result):
+    def ok(self) -> bool:
+        return True
+
+    def status_code(self) -> Optional[int]:
+        return None
+
+    def redirect_url(self) -> Optional[Url]:
+        return None
+
+    def error_msg(self) -> Optional[str]:
+        return None
+
+    def convert_with(self, converter: "Converter[Out]") -> Out:
+        return converter.convert_excluded(self)
+
+
+@attrs.frozen
 class Unknown(Result):
     def ok(self) -> bool:
         # It's considered OK because the underlying error will be reported by another
@@ -137,6 +155,10 @@ class Converter(ABC, Generic[Out]):
 
     @abstractmethod
     def convert_request_error(self, error: RequestError) -> Out:
+        pass
+
+    @abstractmethod
+    def convert_excluded(self, excluded: Excluded) -> Out:
         pass
 
     @abstractmethod

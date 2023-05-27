@@ -11,6 +11,7 @@ def command(
     url: str,
     verbose: Optional[bool] = None,
     json: Optional[bool] = None,
+    exclude: Sequence[str] = (),
     max_parallel_requests: Optional[int] = None,
 ) -> Sequence[str]:
     """
@@ -27,6 +28,9 @@ def command(
 
     if json:
         cli += ["--json"]
+
+    for s in exclude:
+        cli += ["--exclude", s]
 
     if max_parallel_requests is not None:
         cli += ["--max-parallel-requests", str(max_parallel_requests)]

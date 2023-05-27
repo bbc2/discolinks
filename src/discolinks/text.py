@@ -17,6 +17,9 @@ class Converter(outcome.Converter[str]):
     def convert_request_error(self, error: outcome.RequestError) -> str:
         return f"[red]{escape(str(error.msg))}[/red]"
 
+    def convert_excluded(self, excluded: outcome.Excluded) -> str:
+        return "excluded"
+
     def convert_unknown(self, unknown: outcome.Unknown) -> str:
         assert False, "`Unknown` result isn't supposed to be shown"
 

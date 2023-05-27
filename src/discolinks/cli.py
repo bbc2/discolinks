@@ -11,6 +11,7 @@ from rich.logging import RichHandler
 
 from . import analyzer, export, text
 from .core import Url
+from .excluder import Excluder, ExcluderRegexError
 from .link_extractor import get_links
 from .monitor import Monitor, new_monitor
 from .requester import Requester
@@ -86,9 +87,10 @@ async def main_async(
     max_parallel_requests: int,
     url_store: UrlStore,
     monitor: Monitor,
+    excluder: Excluder,
     start_url: Url,
 ):
-    requester = Requester()
+    requester = Requester(excluder=excluder)
     next_url: Optional[Url] = start_url
 
     while next_url is not None:
@@ -143,12 +145,28 @@ async def main_async(
     is_flag=True,
     help="Export results as JSON to the standard output.",
 )
+@click.option(
+    "--exclude",
+    default=[],
+    type=str,
+    multiple=True,
+    help="""
+        Regular expression matching URLs to exclude from the crawl.
+        Can be supplied multiple times.
+    """,
+)
 @click.option("--url", required=True, help="URL where crawling will start.")
 @click.version_option(
     prog_name="discolinks",
     message="%(prog)s version %(version)s",
 )
-def main(verbose: bool, max_parallel_requests: int, to_json: bool, url: str) -> None:
+def main(
+    verbose: bool,
+    max_parallel_requests: int,
+    to_json: bool,
+    exclude: tuple[str, ...],
+    url: str,
+) -> None:
     console = rich.console.Console(stderr=True)
     main_logger = logging.getLogger("discolinks")
     level = logging.DEBUG if verbose else logging.INFO
@@ -164,6 +182,17 @@ def main(verbose: bool, max_parallel_requests: int, to_json: bool, url: str) -> 
     url_store = UrlStore()
 
     try:
+        excluder = Excluder.from_regexes(regexes=exclude)
+    except ExcluderRegexError as error:
+        logger.error(
+            "Invalid value `[yellow]%s[/yellow]` for --exclude: %s",
+            rich.markup.escape(error.regex),
+            rich.markup.escape(error.msg),
+            extra={"markup": True},
+        )
+        exit(1)
+
+    try:
         with new_monitor(console=console) as monitor:
             # Define main task (wrap in a future to make it cancellable).
             main_task = asyncio.ensure_future(
@@ -171,6 +200,7 @@ def main(verbose: bool, max_parallel_requests: int, to_json: bool, url: str) -> 
                     max_parallel_requests=max_parallel_requests,
                     url_store=url_store,
                     monitor=monitor,
+                    excluder=excluder,
                     start_url=start_url,
                 )
             )

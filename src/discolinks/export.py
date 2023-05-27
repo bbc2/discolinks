@@ -30,6 +30,11 @@ class Converter(outcome.Converter[Any]):
             "message": str(error.msg),
         }
 
+    def convert_excluded(self, unknown: outcome.Excluded) -> Any:
+        return {
+            "type": "excluded",
+        }
+
     def convert_unknown(self, unknown: outcome.Unknown) -> Any:
         return {
             "type": "unknown",

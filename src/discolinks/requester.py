@@ -7,6 +7,7 @@ import httpx
 
 from . import outcome
 from .core import Url
+from .excluder import Excluder
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,7 @@ def httpx_to_error(error: Union[httpx.RequestError, ssl.SSLError]) -> str:
 
 @attrs.frozen
 class Requester:
+    excluder: Excluder
     client: httpx.AsyncClient = attrs.field(init=False, factory=httpx.AsyncClient)
 
     async def get(self, url: Url, use_head: bool = False) -> outcome.Result:
@@ -41,7 +43,12 @@ class Requester:
         Fetch a page from the given HTTP URL.
         """
         method = "HEAD" if use_head else "GET"
-        logger.debug("%s %s", method, url)
+
+        if self.excluder.is_excluded(url):
+            logger.debug("Excluded: %s", url)
+            return outcome.Excluded()
+        else:
+            logger.debug("%s %s", method, url)
 
         try:
             response = await self.client.request(method=method, url=url.full)

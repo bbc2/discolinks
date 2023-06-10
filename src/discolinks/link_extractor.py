@@ -19,6 +19,9 @@ class LinkExtractor(outcome.Converter[Optional[Sequence[Link]]]):
     def convert_request_error(self, error: outcome.RequestError) -> None:
         return None
 
+    def convert_excluded(self, excluded: outcome.Excluded) -> None:
+        return None
+
     def convert_unknown(self, unknown: outcome.Unknown) -> None:
         return None
 

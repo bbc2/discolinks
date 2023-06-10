@@ -1,5 +1,7 @@
 import asyncio
+import functools
 import logging
+import signal
 from typing import Optional
 from urllib.parse import urldefrag, urlparse
 
@@ -163,7 +165,8 @@ def main(verbose: bool, max_parallel_requests: int, to_json: bool, url: str) -> 
 
     try:
         with new_monitor(console=console) as monitor:
-            asyncio.run(
+            # Define main task (wrap in a future to make it cancellable).
+            main_task = asyncio.ensure_future(
                 main_async(
                     max_parallel_requests=max_parallel_requests,
                     url_store=url_store,
@@ -171,8 +174,22 @@ def main(verbose: bool, max_parallel_requests: int, to_json: bool, url: str) -> 
                     start_url=start_url,
                 )
             )
-    except KeyboardInterrupt:
-        logger.warning("Interrupted.")
+
+            # Cancel main task when interrupted.
+            loop = asyncio.get_event_loop()
+            loop.add_signal_handler(
+                signal.SIGINT,
+                functools.partial(main_task.cancel, msg="SIGINT"),
+            )
+            loop.add_signal_handler(
+                signal.SIGTERM,
+                functools.partial(main_task.cancel, msg="SIGTERM"),
+            )
+
+            # Run main task.
+            loop.run_until_complete(main_task)
+    except asyncio.CancelledError as error:
+        logger.warning("Interrupted (%s)", error)
         interrupted = True
     except Exception as exc:
         logger.exception(exc)

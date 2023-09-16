@@ -19,21 +19,28 @@ httpx = "^0.25.0"
 python = "^3.9"
 rich = "^13.3.1"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 black = "^23.9.1"
-flake8 = "^6.0.0"
 flask = "^2.1.2"
-isort = "^5.10.1"
 mypy = "^1.0.0"
 pytest = "^7.1.2"
+ruff = "^0.0.290"
 types-beautifulsoup4 = "^4.11.1"
 
 [tool.poetry.scripts]
 discolinks = 'discolinks.cli:main'
 
+[tool.ruff]
+select = ["ASYNC", "B", "C4", "E", "F", "N", "Q", "RUF", "W"]
+line-length = 100
+
+[tool.ruff.isort]
+known-first-party = ["discolinks"]
+
 [tool.mypy]
 check_untyped_defs = true
 no_implicit_reexport = true
+python_version = "3.9"
 warn_unused_ignores = true
 
 [build-system]

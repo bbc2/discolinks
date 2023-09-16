@@ -21,7 +21,7 @@ class Converter(outcome.Converter[str]):
         return "excluded"
 
     def convert_unknown(self, unknown: outcome.Unknown) -> str:
-        assert False, "`Unknown` result isn't supposed to be shown"
+        raise AssertionError("`Unknown` result isn't supposed to be shown")
 
 
 def print_results(analysis: analyzer.Analysis) -> None:

@@ -10,14 +10,13 @@ help:
 
 .PHONY: check-format
 check-format:  ## Check code quality.
-	isort --check-only --diff ${python_src}
+	ruff check --select I --diff ${python_src}
 	black --check --diff ${python_src}
 
 .PHONY: check-lint
 check-lint:  ## Check code quality.
-	flake8 ${python_src}
-	mypy --python-version 3.10 ${python_src}
-	mypy --python-version 3.9 ${python_src}
+	ruff check ${python_src}
+	dmypy run -- ${python_src}
 
 .PHONY: check-test
 check-test:  ## Check tests.
@@ -28,5 +27,5 @@ check: check-test check-lint check-format  ## Check everything.
 
 .PHONY: format
 format:  ## Format everything.
-	isort ${python_src}
+	ruff check --select I --fix ${python_src}
 	black ${python_src}

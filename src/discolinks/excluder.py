@@ -16,7 +16,7 @@ def parse_regex(regex: str) -> re.Pattern:
     try:
         return re.compile(regex)
     except re.error as error:
-        raise ExcluderRegexError(regex=regex, msg=str(error))
+        raise ExcluderRegexError(regex=regex, msg=str(error)) from error
 
 
 @attrs.frozen

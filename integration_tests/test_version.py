@@ -12,7 +12,7 @@ import pytest
 )
 def test_version_module(invocation):
     result = subprocess.run(
-        invocation + ["--version"],
+        [*invocation, "--version"],
         stdout=subprocess.PIPE,
     )
 

@@ -11,7 +11,7 @@ help:
 .PHONY: check-format
 check-format:  ## Check code quality.
 	ruff check --select I --diff ${python_src}
-	black --check --diff ${python_src}
+	ruff format --check --diff ${python_src}
 
 .PHONY: check-lint
 check-lint:  ## Check code quality.
@@ -28,4 +28,4 @@ check: check-test check-lint check-format  ## Check everything.
 .PHONY: format
 format:  ## Format everything.
 	ruff check --select I --fix ${python_src}
-	black ${python_src}
+	ruff format ${python_src}

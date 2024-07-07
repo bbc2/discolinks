@@ -20,7 +20,6 @@ python = "^3.9"
 rich = "^13.3.1"
 
 [tool.poetry.group.dev.dependencies]
-black = "^24.4.2"
 flask = "^3.0.3"
 mypy = "^1.0.0"
 pytest = "^7.1.2"
@@ -28,10 +27,10 @@ ruff = "^0.5.1"
 types-beautifulsoup4 = "^4.11.1"
 
 [tool.poetry.scripts]
-discolinks = 'discolinks.cli:main'
+discolinks = "discolinks.cli:main"
 
 [tool.ruff]
-line-length = 100
+line-length = 90
 
 [tool.ruff.lint]
 select = ["ASYNC", "B", "C4", "E", "F", "N", "Q", "RUF", "W"]

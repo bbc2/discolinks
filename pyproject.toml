@@ -22,7 +22,7 @@ rich = "^13.3.1"
 [tool.poetry.group.dev.dependencies]
 flask = "^3.0.3"
 mypy = "^1.0.0"
-pytest = "^7.1.2"
+pytest = "^8.2.2"
 ruff = "^0.5.1"
 types-beautifulsoup4 = "^4.11.1"
 

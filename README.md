@@ -26,8 +26,8 @@ $ discolinks --url https://example.net
 ## Development
 
 ```bash
-... # Activate virtualenv.
-poetry install
+... # Activate a virtualenv.
+uv sync
 make check
 ```
 

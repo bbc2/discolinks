@@ -1,4 +1,5 @@
-import attrs
+from dataclasses import dataclass
+
 from rich import print
 from rich.markup import escape
 from rich.tree import Tree
@@ -6,7 +7,7 @@ from rich.tree import Tree
 from . import analyzer, outcome
 
 
-@attrs.frozen
+@dataclass(frozen=True)
 class Converter(outcome.Converter[str]):
     def convert_page(self, page: outcome.Page) -> str:
         return f"[red]{escape(str(page.code))}[/red]"

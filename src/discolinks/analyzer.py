@@ -1,13 +1,12 @@
+from dataclasses import dataclass
 from typing import Mapping, Sequence
-
-import attrs
 
 from . import outcome
 from .core import Url
 from .url_store import UrlInfo
 
 
-@attrs.frozen
+@dataclass(frozen=True)
 class LinkResult:
     href: str
     url: Url
@@ -17,7 +16,7 @@ class LinkResult:
         return self.results.ok()
 
 
-@attrs.frozen
+@dataclass(frozen=True)
 class Page:
     links: Sequence[LinkResult]
 
@@ -55,10 +54,10 @@ def make_chain(
     return chain
 
 
-@attrs.define
+@dataclass
 class Stats:
-    ok: int = attrs.field(default=0)
-    failed: int = attrs.field(default=0)
+    ok: int = 0
+    failed: int = 0
 
     @property
     def total(self) -> int:
@@ -71,7 +70,7 @@ class Stats:
             self.failed += 1
 
 
-@attrs.frozen
+@dataclass(frozen=True)
 class Analysis:
     stats: Stats
     pages: Mapping[Url, Page]

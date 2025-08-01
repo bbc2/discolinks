@@ -1,12 +1,11 @@
 import re
+from dataclasses import dataclass
 from typing import Sequence
-
-import attrs
 
 from .core import Url
 
 
-@attrs.frozen
+@dataclass(frozen=True)
 class ExcluderRegexError(Exception):
     regex: str
     msg: str
@@ -19,7 +18,7 @@ def parse_regex(regex: str) -> re.Pattern:
         raise ExcluderRegexError(regex=regex, msg=str(error)) from error
 
 
-@attrs.frozen
+@dataclass(frozen=True)
 class Excluder:
     """
     Preprocessed engine excluding certain URLs

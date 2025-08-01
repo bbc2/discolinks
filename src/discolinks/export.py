@@ -1,14 +1,13 @@
 import json
+from dataclasses import dataclass
 from typing import Any, Mapping, Sequence
-
-import attrs
 
 from . import outcome
 from .analyzer import Analysis, LinkResult, Page
 from .core import Url
 
 
-@attrs.frozen
+@dataclass(frozen=True)
 class Converter(outcome.Converter[Any]):
     def convert_page(self, page: outcome.Page) -> Any:
         return {
@@ -30,7 +29,7 @@ class Converter(outcome.Converter[Any]):
             "message": str(error.msg),
         }
 
-    def convert_excluded(self, unknown: outcome.Excluded) -> Any:
+    def convert_excluded(self, excluded: outcome.Excluded) -> Any:
         return {
             "type": "excluded",
         }

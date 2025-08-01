@@ -1,20 +1,20 @@
 from contextlib import contextmanager
+from dataclasses import dataclass, field
 from typing import Iterator
 
-import attrs
 import rich.console
 import rich.status
 
 from . import outcome
 
 
-@attrs.define
+@dataclass
 class Stats:
-    queued: int = attrs.field(default=0)
-    in_progress: int = attrs.field(default=0)
-    finished: int = attrs.field(default=0)
-    ok: int = attrs.field(default=0)
-    failed: int = attrs.field(default=0)
+    queued: int = 0
+    in_progress: int = 0
+    finished: int = 0
+    ok: int = 0
+    failed: int = 0
 
     def on_task_started(self, queued: int) -> None:
         self.queued = queued
@@ -30,7 +30,7 @@ class Stats:
             self.failed += 1
 
 
-@attrs.frozen
+@dataclass(frozen=True)
 class Monitor:
     """
     Handle updates of the status bar during scraping.
@@ -40,7 +40,7 @@ class Monitor:
 
     console: rich.console.Console
     status: rich.status.Status
-    stats: Stats = attrs.field(init=False, factory=Stats)
+    stats: Stats = field(init=False, default_factory=Stats)
 
     @classmethod
     def start(cls, console: rich.console.Console) -> "Monitor":

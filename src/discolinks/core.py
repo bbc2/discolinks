@@ -1,9 +1,8 @@
+from dataclasses import dataclass
 from urllib.parse import urldefrag, urlparse
 
-import attrs
 
-
-@attrs.frozen
+@dataclass(frozen=True)
 class Url:
     """
     Wrapper around URL strings.
@@ -31,7 +30,7 @@ class Url:
         return self.full
 
 
-@attrs.frozen
+@dataclass(frozen=True)
 class Link:
     href: str
     url: Url

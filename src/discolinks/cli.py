@@ -7,6 +7,7 @@ from urllib.parse import urldefrag, urlparse
 
 import click
 import rich.console
+import rich.markup
 from rich.logging import RichHandler
 
 from . import analyzer, export, text

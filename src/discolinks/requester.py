@@ -1,8 +1,8 @@
 import logging
 import ssl
+from dataclasses import dataclass, field
 from typing import Union
 
-import attrs
 import httpx
 
 from . import outcome
@@ -33,10 +33,10 @@ def httpx_to_error(error: Union[httpx.RequestError, ssl.SSLError]) -> str:
     return str(error)
 
 
-@attrs.frozen
+@dataclass(frozen=True)
 class Requester:
     excluder: Excluder
-    client: httpx.AsyncClient = attrs.field(init=False, factory=httpx.AsyncClient)
+    client: httpx.AsyncClient = field(init=False, default_factory=httpx.AsyncClient)
 
     async def get(self, url: Url, use_head: bool = False) -> outcome.Result:
         """

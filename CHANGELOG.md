@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.0 - 2026-03-06
+
+- Fix event loop creation for compatibility with Python 3.14.
+
 ## 0.3.0 - 2024-09-03
 
 - Add an `--exclude` parameter to avoid retrieving some families of URLs.

@@ -1,6 +1,6 @@
 [project]
 name = "discolinks"
-version = "0.3.0"
+version = "0.4.0"
 description = "Command-line tool which checks a website for broken links."
 readme = "README.md"
 requires-python = ">=3.9"

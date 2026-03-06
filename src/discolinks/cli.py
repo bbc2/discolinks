@@ -7,6 +7,7 @@ from urllib.parse import urldefrag, urlparse
 
 import click
 import rich.console
+import rich.markup
 from rich.logging import RichHandler
 
 from . import analyzer, export, text
@@ -91,22 +92,26 @@ async def main_async(
     start_url: Url,
 ):
     requester = Requester(excluder=excluder)
-    next_url: Optional[Url] = start_url
+    url = start_url
 
-    while next_url is not None:
-        url = next_url
+    while True:
         result = await requester.get(url)
         next_url = result.redirect_url()
         new_urls = url_store.add_page(
             url=url,
             info=UrlInfo(result=result, links=get_links(url=url, result=result)),
         )
-        if next_url is not None:
-            logger.info(f"Redirected to {next_url}")
 
-            if next_url not in new_urls:
-                logger.error("Detected circular redirects. Aborting.")
-                exit(1)
+        if next_url is None:
+            break
+
+        logger.info(f"Redirected to {next_url}")
+
+        if next_url not in new_urls:
+            logger.error("Detected circular redirects. Aborting.")
+            exit(1)
+
+        url = next_url
 
     error_msg = result.error_msg()
     if error_msg is not None:

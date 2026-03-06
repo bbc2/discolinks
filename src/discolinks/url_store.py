@@ -1,12 +1,11 @@
+from dataclasses import dataclass, field
 from typing import Mapping, Optional, Sequence
-
-import attrs
 
 from . import outcome
 from .core import Link, Url
 
 
-@attrs.frozen
+@dataclass(frozen=True)
 class UrlInfo:
     result: outcome.Result
     links: Optional[Sequence[Link]]
@@ -22,10 +21,10 @@ class UrlInfo:
             return frozenset(link.url for link in self.links)
 
 
-@attrs.frozen
+@dataclass(frozen=True)
 class UrlStore:
-    url_infos: dict[Url, UrlInfo] = attrs.field(init=False, factory=dict)
-    seen_urls: set[Url] = attrs.field(init=False, factory=set)
+    url_infos: dict[Url, UrlInfo] = field(init=False, default_factory=dict)
+    seen_urls: set[Url] = field(init=False, default_factory=set)
 
     def add_page(self, url: Url, info: UrlInfo) -> frozenset[Url]:
         """

@@ -1,14 +1,13 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import Generic, Optional, Sequence, TypeVar
-
-import attrs
 
 from .core import Url
 
 Out = TypeVar("Out")
 
 
-@attrs.frozen
+@dataclass(frozen=True)
 class Result(ABC):
     @abstractmethod
     def ok(self) -> bool:
@@ -31,7 +30,7 @@ class Result(ABC):
         pass
 
 
-@attrs.frozen
+@dataclass(frozen=True)
 class Redirect(Result):
     code: int
     ref: str
@@ -53,7 +52,7 @@ class Redirect(Result):
         return converter.convert_redirect(self)
 
 
-@attrs.frozen
+@dataclass(frozen=True)
 class Page(Result):
     code: int
     body: str
@@ -74,7 +73,7 @@ class Page(Result):
         return converter.convert_page(self)
 
 
-@attrs.frozen
+@dataclass(frozen=True)
 class RequestError(Result):
     msg: str
 
@@ -94,7 +93,7 @@ class RequestError(Result):
         return converter.convert_request_error(self)
 
 
-@attrs.frozen
+@dataclass(frozen=True)
 class Excluded(Result):
     def ok(self) -> bool:
         return True
@@ -112,7 +111,7 @@ class Excluded(Result):
         return converter.convert_excluded(self)
 
 
-@attrs.frozen
+@dataclass(frozen=True)
 class Unknown(Result):
     def ok(self) -> bool:
         # It's considered OK because the underlying error will be reported by another
@@ -132,7 +131,7 @@ class Unknown(Result):
         return converter.convert_unknown(self)
 
 
-@attrs.frozen
+@dataclass(frozen=True)
 class Results:
     chain: Sequence[Result]
 

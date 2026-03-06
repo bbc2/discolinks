@@ -16,7 +16,7 @@ check-format:  ## Check code quality.
 .PHONY: check-lint
 check-lint:  ## Check code quality.
 	ruff check ${python_src}
-	dmypy run -- ${python_src}
+	pyrefly check --search-path . ${python_src}
 
 .PHONY: check-test
 check-test:  ## Check tests.

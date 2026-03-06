@@ -27,7 +27,7 @@ discolinks = "discolinks.cli:main"
 [dependency-groups]
 dev = [
   "flask>=3.0.3",
-  "mypy>=1.0.0",
+  "pyrefly>=0.35.0",
   "pytest>=8.2.2",
   "ruff>=0.6.3",
   "types-beautifulsoup4>=4.11.1",
@@ -51,3 +51,6 @@ check_untyped_defs = true
 no_implicit_reexport = true
 python_version = "3.9"
 warn_unused_ignores = true
+
+[tool.pyrefly]
+python_version = "3.9.0"

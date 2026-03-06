@@ -1,12 +1,11 @@
+from dataclasses import dataclass
 from typing import Optional, Sequence
-
-import attrs
 
 from . import html, outcome
 from .core import Link, Url
 
 
-@attrs.frozen
+@dataclass(frozen=True)
 class LinkExtractor(outcome.Converter[Optional[Sequence[Link]]]):
     url: Url
 

@@ -199,6 +199,10 @@ def main(
 
     try:
         with new_monitor(console=console) as monitor:
+            # Set event loop
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
             # Define main task (wrap in a future to make it cancellable).
             main_task = asyncio.ensure_future(
                 main_async(
@@ -211,7 +215,6 @@ def main(
             )
 
             # Cancel main task when interrupted.
-            loop = asyncio.get_event_loop()
             loop.add_signal_handler(
                 signal.SIGINT,
                 functools.partial(main_task.cancel, msg="SIGINT"),

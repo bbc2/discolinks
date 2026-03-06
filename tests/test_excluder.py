@@ -24,7 +24,7 @@ def test_excluder_from_regexes_error():
         (["a", "f"], Url.from_str("https://foo"), True),
     ],
 )
-def test_excluder_combined(regexes: str, url: Url, expected: bool):
+def test_excluder_combined(regexes: list[str], url: Url, expected: bool):
     result = Excluder.from_regexes(regexes).is_excluded(url)
 
     assert result is expected

@@ -3,7 +3,7 @@ name = "discolinks"
 version = "0.4.0"
 description = "Command-line tool which checks a website for broken links."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = "MIT"
 authors = [
   { name = "Bertrand Bonnefoy-Claudet", email = "bertrand@bertrandbc.com" },
@@ -49,8 +49,8 @@ known-first-party = ["discolinks"]
 [tool.mypy]
 check_untyped_defs = true
 no_implicit_reexport = true
-python_version = "3.9"
+python_version = "3.10"
 warn_unused_ignores = true
 
 [tool.pyrefly]
-python_version = "3.9.0"
+python_version = "3.10.0"
